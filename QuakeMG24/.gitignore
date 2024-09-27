@@ -1,0 +1,19 @@
+# remove gecko_sdk directory due to different licensing. This requires project to be generated!
+/gecko_sdk*
+# remove sls file which might still containg traces of gsdk, under different licenses.
+*.d
+*.map
+*.sls
+/.trash
+*.bak*
+/GNU ARM*/gecko_sdk*
+/SparkDoom/gecko_sdk*
+/TheGamepad*/gecko_sdk*
+imported_project_report.html
+/.uceditor/*
+*.mk
+/GNU ARM*/autogen/*
+/SparkDoom/autogen/*
+/TheGamepad*/autogen/*
+imported_project_report.html
+QuakeMG24_project.pdf

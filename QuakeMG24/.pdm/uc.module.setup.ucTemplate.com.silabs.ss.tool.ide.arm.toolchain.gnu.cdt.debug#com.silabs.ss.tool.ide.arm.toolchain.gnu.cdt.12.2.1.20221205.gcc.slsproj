@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="uc.module.setup.ucTemplate.com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt.debug#com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt:12.2.1.20221205.gcc" propertyScope="project">
+  <folder name="autogen">
+    <file name="RTE_Components.h" builtin="true" generated="true"/>
+    <file name="sl_component_catalog.h" builtin="true" generated="true"/>
+    <file name="sl_device_init_clocks.c" builtin="true" generated="true"/>
+    <file name="sl_event_handler.h" builtin="true" generated="true"/>
+    <file name="sl_event_handler.c" builtin="true" generated="true"/>
+    <file name="linkerfile.ld" builtin="true" generated="true"/>
+  </folder>
+  <includePath uri="studio:/project/autogen"/>
+</project>

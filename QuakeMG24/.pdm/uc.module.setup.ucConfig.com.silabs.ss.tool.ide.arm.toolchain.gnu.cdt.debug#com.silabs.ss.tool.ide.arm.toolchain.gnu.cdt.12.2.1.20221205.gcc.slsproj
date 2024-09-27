@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="uc.module.setup.ucConfig.com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt.debug#com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt:12.2.1.20221205.gcc" propertyScope="project">
+  <folder name="config">
+    <file name="sl_memory_config.h" generated="true" linked="false"/>
+    <file name="sl_device_init_emu_config.h" generated="true" linked="false"/>
+    <file name="sl_device_init_dcdc_config.h" generated="true" linked="false"/>
+    <file name="sl_device_init_hfxo_config.h" generated="true" linked="false"/>
+    <file name="emlib_core_debug_config.h" generated="true" linked="false"/>
+    <file name="sl_device_init_dpll_config.h" generated="true" linked="false"/>
+  </folder>
+  <includePath uri="studio:/project/config"/>
+</project>

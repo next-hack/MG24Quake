@@ -1,0 +1,2 @@
+%USERPROFILE%\AppData\Local\Arduino15\packages\SiliconLabs\Tools\openocd\0.12.0-arduino1-static\bin\openocd -d2 -s %USERPROFILE%\AppData\Local\Arduino15\packages\SiliconLabs\Tools\openocd\0.12.0-arduino1-static\share\openocd\scripts\ -f interface\cmsis-dap.cfg -f target\efm32s2_g23.cfg -c  "init; reset_config srst_nogate; reset halt; program {QuakeMG24.hex}; reset; exit"
+pause

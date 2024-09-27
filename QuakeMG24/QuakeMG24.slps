@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ASCII"?>
+<model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
+  <descriptors name="QuakeMG24">
+    <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.super:4.4.3._-905069211"/>
+    <properties key="universalConfig.relativeWorkspacePath" value="..\QuakeMG24.slcw"/>
+    <properties key="universalConfig.generationDirectory" value=""/>
+    <properties key="universalConfig.toolchainCompatibility" value="iar gcc"/>
+    <properties key="universalConfig.incrementalOverwriteConfigs" value="false"/>
+    <properties key="projectCommon.boardIds" value="com.silabs.board.none:0.0.0"/>
+    <properties key="projectCommon.kitId" value=""/>
+    <properties key="projectCommon.partId" value="mcu.arm.efr32.mg24.mgm240sd22vna"/>
+    <properties key="projectCommon.toolchainId" value="com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt:12.2.1.20221205"/>
+    <properties key="universalConfig.projectTypeIds" value="com.silabs.ss.framework.ide.project.core.cdtMbsProjectType"/>
+    <properties key="projectCommon.importModeId" value="COPY"/>
+    <properties key="universalConfig.compSelProjInstanceId" value="1725183011667"/>
+  </descriptors>
+</model:MDescriptors>

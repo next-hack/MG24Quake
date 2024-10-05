@@ -72,7 +72,6 @@ typedef struct particle_s
 #endif
     uint8_t color;  // can be uint8_t
 
-// drivers never touch the following fields
     uint8_t fixed_ramp;           // max is 8. Frame time is larger than 0.01. And time1 is typically at least 0.05.
 
     uint32_t fixed_die :16;      // die must have 0.01 resolution and max is 5
@@ -82,16 +81,10 @@ typedef struct particle_s
     int32_t vel1 :14;
     uint32_t type :3;           // can be uint8_t:3 bits.
     uint32_t inUse :1;
-//
-
-// here aligned 32
-//	uint16_t	next_idx : 11;      // will be short ptr. Max 2047, but will be reduced.
-//int16_t		vel9p7[3];           // this can be 3 int16_t of the type 9.7
-
 #endif
 
 } particle_t;
-#define PARTICLE_VEL_FRAC_SHIFT             5
+#define PARTICLE_VEL_FRAC_SHIFT             3
 #define defineParticleVelSetterGetter(number) \
 static inline void setParticleVel##number(particle_t *p, float v)   \
 {   \

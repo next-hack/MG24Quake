@@ -32,6 +32,21 @@
 //#define	GLTEST			// experimental stuff
 #ifndef QUAKEDEF_H
 #define QUAKEDEF_H          // DAMN YOU FOR NOT USING HEADER GUARDS!
+#define PROFILE_NUM_ELEMENTS 1
+#define CACHEABLE_SKIN       1
+#if PROFILE_NUM_ELEMENTS
+extern int maxLeaves;
+extern int maxFaces;
+extern int maxNodes;
+extern int maxEdges;
+extern int maxEntitiesEasy;
+extern int maxEntitiesMedium;
+extern int maxEntitiesHard;
+extern int maxLighting;
+#define PROFILE(name, count) do {if (max##name < (count)) max##name = (count); } while(0)
+#endif // PROFILE_NUM_ELEMENTS
+
+
 #define FIXME(reason) do{printf("\r\n%s at line %d file %s\r\n", reason, __LINE__, __FILE__); system("pause");}while(0)
 #define vectorize(v) (*(vector *)v)
 #define	QUAKE_GAME			// as opposed to utilities

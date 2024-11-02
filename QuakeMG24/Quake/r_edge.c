@@ -2045,7 +2045,7 @@ void R_ScanEdges(void)
 // process all scan lines
 //
     bottom = _g->r_refdef.vrectbottom - 1;
-#if WIN32 
+#if WIN32 & 0
     static int maxedges = 0;
     if (maxedges < _g->edge_p - _g->base_edge_p)
         maxedges = _g->edge_p - _g->base_edge_p;

@@ -26,6 +26,7 @@
 
  */
 #include "quakedef.h"
+
 extern const uint8_t qcc_classname2type[max_classname_string_index];
 vector set_qcc_absmin(edict_t *ent, vector value)
 {

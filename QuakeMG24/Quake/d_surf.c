@@ -600,10 +600,10 @@ static void loadAndBuildLighting(int currentSurfIndex)
     for (int i = 0; i < size; i++)
         _g->blocklights[i] = al;
     //
-    int index = ((byte*) surf - (byte*) _g->cl.worldmodel->brushModelData->surfaces) / sizeof(msurface_t); //not sure why it does not work.
-    if (index < _g->cl.worldmodel->brushModelData->numsurfaces)
+//    int index = ((byte*) surf - (byte*) _g->cl.worldmodel->brushModelData->surfaces) / sizeof(msurface_t); //not sure why it does not work.
+//    if (index < _g->cl.worldmodel->brushModelData->numsurfaces)
     {
-        unsigned int nodeindex = _g->cl.worldmodel->brushModelData->surfNodeIndex[index];
+        unsigned int nodeindex = surf->surfNodeIndex;//_g->cl.worldmodel->brushModelData->surfNodeIndex[index];
         if (nodeHadDlight[nodeindex / 8] & (1 << (nodeindex % 8)))
             R_AddDynamicLights();
     }

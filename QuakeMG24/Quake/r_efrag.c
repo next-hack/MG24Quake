@@ -32,7 +32,9 @@
 #include "quakedef.h"
 #include "r_local.h"
 mnode_t	*r_pefragtopnode;
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 
 //===========================================================================
 

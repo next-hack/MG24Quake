@@ -37,25 +37,33 @@ typedef byte pixel_t;
 
 typedef struct vrect_s
 {
-    int x, y, width, height;
-    struct vrect_s *pnext;
+    short x, y, width, height;
+  //  struct vrect_s *pnext;
 } vrect_t;
-
+#define VID_NUMPAGES    1
+#define VID_ROWBYTES    SCREEN_WIDTH
+#define VID_WIDTH       SCREEN_WIDTH
+#define VID_HEIGHT      SCREEN_HEIGHT
 typedef struct
 {
     pixel_t *buffer;		// invisible buffer
     pixel_t *colormap;		// 256 * VID_GRADES size
-    int fullbright;		// index of first fullbright color
-    unsigned rowbytes;	// may be > width if displayed in a window
-    int16_t width;
-    int16_t height;
+    unsigned short *colormap16;	// 256 * VID_GRADES size
+//    unsigned rowbytes;	// may be > width if displayed in a window
+//    int16_t width;
+//    int16_t height;
     float aspect;		// width / height -- < 0 is taller than wide
-    int numpages;
-    int recalc_refdef;	// if true, recalc vid-based stuff
+//  int numpages;
+    short fullbright;		// index of first fullbright color
+    short recalc_refdef;	// if true, recalc vid-based stuff
     pixel_t *conbuffer;
-    int conrowbytes;
-    unsigned conwidth;
-    unsigned conheight;
+//    int conrowbytes;
+//    unsigned conwidth;
+//    unsigned conheight;
+//	int				maxwarpwidth;
+//	int				maxwarpheight;
+//	pixel_t			*direct;		// direct drawing to framebuffer, if not
+//  NULL
 } viddef_t;
 
 extern viddef_t vid;				// global video state

@@ -29,6 +29,7 @@
 // snd_mix.c -- portable code to mix sounds for snd_dma.c
 #if !WIN32
 #include "quakedef.h"
+
 #if !WIN32
 #include "audio.h"
 #endif

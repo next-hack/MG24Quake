@@ -142,6 +142,33 @@ typedef struct
 #if WIN32 && 0
 uint16_t goffsets[40000];
 #endif
+#define SINGLE_CACHED_EDGE_BUFFER 0
+static inline uint16_t *getCachedEdgeOffsetBuffer(int index)
+{
+    #if SINGLE_CACHED_EDGE_BUFFER
+        return (uint16_t *) getTextureCacheBuffer() + index;
+    #else
+        if (index <(MAX_TEXTURE_SIZE / 2))
+        {
+            return (uint16_t *) getTextureCacheBuffer() + index;
+        }
+        else
+        {
+            uint16_t *off= (uint16_t*) (( (uint8_t *)d_zbuffer +  4 * ((MAX_MAP_NODES + 31) / 32) + 12 * ((MAX_MAP_LEAFS + 31) / 32)));
+            return off + index - (MAX_TEXTURE_SIZE / 2);
+        }
+    #endif
+}
+
+void clearCachedEdgeOffsets(void)
+{
+    #if SINGLE_CACHED_EDGE_BUFFER
+        fastMemclear32(getCachedEdgeOffsetBuffer(0), (MAX_MAP_EDGES) / 2);
+    #else
+        fastMemclear32(getTextureCacheBuffer(0), MAX_TEXTURE_SIZE / 4);
+        fastMemclear32(getCachedEdgeOffsetBuffer(MAX_TEXTURE_SIZE / 2), (MAX_MAP_EDGES - MAX_TEXTURE_SIZE / 2 ) / 2 );
+    #endif
+}
 static inline uint16_t getMedgeIndex(medge_t *edge)
 {
     int index = edge - &_g->cl.worldmodel->brushModelData->edges[0];
@@ -156,17 +183,17 @@ static inline void setCachedEdgeOffset(medge_t *edge, unsigned int offset)
 #if WIN32 && 0
     uint16_t *offsets = goffsets;
 #else
-    uint16_t *offsets = getTextureCacheBuffer();
+    uint16_t *offsets = getCachedEdgeOffsetBuffer(index);
 #endif
-    offsets[index] = offset;
+    *offsets = offset;
 }
 static inline uint16_t getCachedEdgeOffset(medge_t *edge)
 {
     //if (_g->insubmodel)
     //     return FRAMECOUNT_MASK;
     int index = getMedgeIndex(edge);
-    uint16_t *offsets = getTextureCacheBuffer();
-    return offsets[index];
+    uint16_t *offsets = getCachedEdgeOffsetBuffer(index);
+    return *offsets;
 }
 #endif // NEW_CACHED_EDGES
 

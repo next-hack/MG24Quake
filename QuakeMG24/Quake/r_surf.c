@@ -89,6 +89,7 @@ DRAWSURF_SEC void R_AddDynamicLights (void)
     tex = getMsurfaceTexinfo(surf);
 #endif
 #if 1
+#error
     unsigned int index = surf - _g->cl.worldmodel->brushModelData->surfaces;
     unsigned int nodeindex = _g->cl.worldmodel->brushModelData->surfNodeIndex[index];
     mplane_t *splitplane;
@@ -118,9 +119,11 @@ DRAWSURF_SEC void R_AddDynamicLights (void)
 #if !SEPARATE_BRUSH_MODEL_DATA
         unsigned int index = surf - cl.worldmodel->surfaces;
 #else
+#error
         unsigned int index = surf - cl.worldmodel->brushModelData->surfaces;
 #endif
         unsigned int nodeindex = cl.worldmodel->brushModelData->surfNodeIndex[index];
+ printf("ni %d\r\n", nodeindex);
 #if USE_NODE_DLIGHTBITS
         if ( !(nodeDlightBits[nodeindex] & (1<<lnum) ))
         continue;
@@ -235,8 +238,8 @@ DRAWSURF_SEC void R_AddDynamicLights(void)
     smax = (surf->extents[0] >> 4) + 1;
     tmax = (surf->extents[1] >> 4) + 1;
     tex = surf->texinfo;
-    unsigned int index = surf - _g->cl.worldmodel->brushModelData->surfaces;
-    unsigned int nodeindex = _g->cl.worldmodel->brushModelData->surfNodeIndex[index];
+   // unsigned int index = surf - _g->cl.worldmodel->brushModelData->surfaces;
+    unsigned int nodeindex = surf->surfNodeIndex; // _g->cl.worldmodel->brushModelData->surfNodeIndex[index];
     mplane_t *splitplane;
     splitplane = _g->cl.worldmodel->brushModelData->nodes[nodeindex].plane; // is it right ?
 
@@ -330,17 +333,17 @@ DRAWSURF_SEC void R_BuildLightMap(void)
 #if !SEPARATE_BRUSH_MODEL_DATA
 	if (r_fullbright || !cl.worldmodel->lightdata)
 #else
-	if (r_fullbright || !cl.worldmodel->brushModelData->lightdata)
+	if (r_fullbright || !_g->cl.worldmodel->brushModelData->lightdata)
 #endif
 	{
 		for (i=0 ; i<size ; i++)
-			blocklights[i] = 0;
+			_g->blocklights[i] = 0;
 		return;
 	}
 
 // clear to ambient
 	for (i=0 ; i<size ; i++)
-		blocklights[i] = r_refdef.ambientlight<<8;
+		_g->blocklights[i] = _g->r_refdef.ambientlight<<8;
 
 
 // add all the lightmaps
@@ -350,7 +353,7 @@ DRAWSURF_SEC void R_BuildLightMap(void)
 		{
 			scale = r_drawsurf.lightadj[maps];	// 8.8 fraction
 			for (i=0 ; i<size ; i++)
-				blocklights[i] += lightmap[i] * scale;
+				_g->blocklights[i] += lightmap[i] * scale;
 			lightmap += size;	// skip to next lightmap
 		}
 
@@ -359,25 +362,13 @@ DRAWSURF_SEC void R_BuildLightMap(void)
 	if (surf->dlightframe == r_framecount)
 		R_AddDynamicLights ();
 #else
-#if !SEPARATE_BRUSH_MODEL_DATA
-    unsigned int index = ((byte *)surf - (byte*) cl.worldmodel->surfaces) / sizeof(msurface_t); //not sure whi it does not work.
-#else
-    unsigned int index = ((byte *)surf - (byte*) cl.worldmodel->brushModelData->surfaces) / sizeof(msurface_t); //not sure why it does not work.
-#endif
-//    printf("I %p wms %p, diff %d diff manual %d\r\n", surf, cl.worldmodel->surfaces, surf-cl.worldmodel->surfaces, ((byte *)surf - (byte*) cl.worldmodel->surfaces) / sizeof(msurface_t));
 #if !MARK_NODE_IN_SURFACE
     if (isSurfDlightVisited(index))
 		R_AddDynamicLights ();
 #else
  //   printf("idx: %d. Model %p\r\n", index, currententity->model);
-#if !SEPARATE_BRUSH_MODEL_DATA
-    if (index < cl.worldmodel->numsurfaces)
-#else
-    if (index < cl.worldmodel->brushModelData->numsurfaces)
-#endif
     {
-        unsigned int nodeindex = cl.worldmodel->brushModelData->surfNodeIndex[index];
-//        printf("nodeIdx: %d\r\n", nodeindex);
+        unsigned int nodeindex = surf->surfNodeIndex;
 #if USE_NODE_DLIGHTBITS
         if (nodeDlightBits[nodeindex])
 	    	R_AddDynamicLights ();

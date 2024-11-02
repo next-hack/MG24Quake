@@ -32,9 +32,13 @@
 #include "winquake.h"
 #endif
 #pragma GCC optimize("Os") // menu does not have to be fast
-
+#if 0
 void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
+#else
+    #define vid_menudrawfn NULL
+    #define vid_menukeyfn  NULL
+#endif
 enum
 {
     m_none,
@@ -76,9 +80,7 @@ void M_Menu_Quit_f(void);
 void M_Menu_SerialConfig_f (void);
   void M_Menu_ModemConfig_f (void);
 void M_Menu_LanConfig_f (void);
-#endif
 void M_Menu_GameOptions_f(void);
-#if HAS_MULTIPLAYER
 void M_Menu_Search_f (void);
 void M_Menu_ServerList_f (void);
 #endif
@@ -100,9 +102,7 @@ void M_Quit_Draw(void);
 void M_SerialConfig_Draw (void);
   void M_ModemConfig_Draw (void);
 void M_LanConfig_Draw (void);
-#endif
 void M_GameOptions_Draw(void);
-#if MULTIPLAYER
 void M_Search_Draw (void);
 void M_ServerList_Draw (void);
 #endif
@@ -163,7 +163,7 @@ int M_IsQuitState(void)
  */
 void M_DrawCharacter(int cx, int line, int num)
 {
-    Draw_Character(cx + ((vid.width - 320) >> 1), line, num);
+    Draw_Character(cx + ((VID_WIDTH - 320) >> 1), line, num);
 }
 
 void M_Print(int cx, int cy, const char *str)
@@ -188,12 +188,12 @@ void M_PrintWhite(int cx, int cy, char *str)
 
 void M_DrawTransPic(int x, int y, qpic_t *pic)
 {
-    Draw_TransPic(x + ((vid.width - 320) >> 1), y, pic);
+    Draw_TransPic(x + ((VID_WIDTH - 320) >> 1), y, pic);
 }
 
 void M_DrawPic(int x, int y, qpic_t *pic)
 {
-    Draw_Pic(x + ((vid.width - 320) >> 1), y, pic);
+    Draw_Pic(x + ((VID_WIDTH - 320) >> 1), y, pic);
 }
 #if STATIC_TRANSLATION_TABLES
 byte identityTable[256];
@@ -233,7 +233,7 @@ void M_DrawTransPicTranslate(int x, int y, qpic_t *pic)
 #if !STATIC_TRANSLATION_TABLES
     byte *translationTable = getTextureCacheBuffer();
 #endif
-    Draw_TransPicTranslate(x + ((vid.width - 320) >> 1), y, pic, translationTable);
+    Draw_TransPicTranslate(x + ((VID_WIDTH - 320) >> 1), y, pic, translationTable);
 }
 
 void M_DrawTextBox(int x, int y, int width, int lines)
@@ -1676,12 +1676,17 @@ void M_Menu_Video_f(void)
 
 void M_Video_Draw(void)
 {
+    #if 0
     (*vid_menudrawfn)();
+    #endif
 }
 
 void M_Video_Key(int key)
 {
+    (void) key;
+    #if 0
     (*vid_menukeyfn)(key);
+    #endif
 }
 
 //=============================================================================
@@ -2535,7 +2540,7 @@ void M_LanConfig_Key (int key)
     lanConfig_port = l;
   sprintf(lanConfig_portname, "%u", lanConfig_port);
 }
-#endif
+
 //=============================================================================
 /* GAME OPTIONS MENU */
 
@@ -2851,7 +2856,6 @@ void M_GameOptions_Draw(void)
     }
 }
 
-#if HAS_MULTIPLAYER
 void M_NetStart_Change (int dir)
 {
   int count;
@@ -3196,7 +3200,7 @@ void M_Draw(void)
 
         if (scr_con_current)
         {
-            Draw_ConsoleBackground(vid.height);
+            Draw_ConsoleBackground(VID_HEIGHT);
             VID_UnlockBuffer ();
             S_ExtraUpdate();
             VID_LockBuffer ();
@@ -3273,12 +3277,10 @@ void M_Draw(void)
   case m_lanconfig:
     M_LanConfig_Draw ();
     break;
-#endif
         case m_gameoptions:
             M_GameOptions_Draw();
             break;
 
-#if HAS_MULTIPLAYER
   case m_search:
     M_Search_Draw ();
     break;

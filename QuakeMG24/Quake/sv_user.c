@@ -28,7 +28,9 @@
  */
 // sv_user.c -- server code for moving users
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 player_edict_t *sv_player;
 #if USE_ORIGINAL_CVAR
 extern	cvar_t	sv_friction;
@@ -465,8 +467,12 @@ void SV_ReadClientMove(usercmd_t *move)
     int bits;
 
 // read ping time
+#if 0
     host_client->ping_times[host_client->num_pings % NUM_PING_TIMES] = sv.time - MSG_ReadFloat();
     host_client->num_pings++;
+#else
+    MSG_ReadFloat();
+#endif
 // read current angles
     for (i = 0; i < 3; i++)
         angle[i] = MSG_ReadAngle();

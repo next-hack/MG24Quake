@@ -147,13 +147,13 @@ typedef struct memblock
 
 enum
 {
-    PU_FREE, PU_STATIC,PU_LEVEL, PU_POOL,
+    PU_FREE, PU_WRAP, PU_STATIC,PU_LEVEL,
     PU_MAX
 };
 #define PU_LEVSPEC PU_LEVEL
 #define PU_PURGELEVEL PU_MAX        /* First purgable tag's level */
 
-
+int getZoneRemainingSize(void);
 void* (Z_Malloc2)(uint32_t size, int tag, void **ptr, const char *sz, int canFail);
 void (Z_Free)(void *ptr);
 void (Z_FreeTags)(int lowtag, int hightag );

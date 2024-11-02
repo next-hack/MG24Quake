@@ -28,6 +28,9 @@
  */
 // sv_edict.c -- entity dictionary
 #include "quakedef.h"
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 static void ED_ForceRemove(edict_t *ed);
 #if USE_PROGSDAT
 dprograms_t		*progs;
@@ -126,7 +129,7 @@ int ED_hasBeenWatchedEntityFreed(edict_t *ent)
 }
 
 #endif
-edict_t* findOldestRemovableEdict(int isGib)
+edict_t* findOldestRemovableEdict(int isMissile)
 {
     float thinkTime = host_time + 1E6;  // should be enough :)
     edict_t *oldest = NULL;
@@ -134,9 +137,9 @@ edict_t* findOldestRemovableEdict(int isGib)
     while ((e = getNextEdict(e)) != END_EDICT)
     {
         int className = get_qcc_classname(e);
-        if ((isGib
+        if ((isMissile
             && (className == progs_zom_gib_mdl_string_index || className == progs_gib1_mdl_string_index || className == progs_gib2_mdl_string_index
-                || progs_gib3_mdl_string_index)) || (!isGib && className == nh_backpack_string_index))
+                || className == progs_gib3_mdl_string_index)) || (!isMissile && className == nh_backpack_string_index))
         {
             float nextThink = get_qcc_nextthink(e);
             if (nextThink < thinkTime)
@@ -144,6 +147,34 @@ edict_t* findOldestRemovableEdict(int isGib)
                 // found a candidate. Let's see others.
                 oldest = e;
                 nextThink = thinkTime;
+                #if WIN32
+                    printf("found %s as candidate\r\n", getStringFromIndex(className));
+                #endif // WIN32
+            }
+        }
+    }
+    if (!oldest && isMissile)
+    {
+        #if WIN32
+            printf("Not found. Trying to remove missiles then!\r\n");
+        #endif // WIN32
+        e = sv.edicts;
+        while ((e = getNextEdict(e)) != END_EDICT)
+        {
+            // check again. Remove missiles
+            isMissile = qcc_classname2type[get_qcc_classname(e)] == missile_edict_idx;
+            if (isMissile)
+            {
+                float nextThink = get_qcc_nextthink(e);
+                if (nextThink < thinkTime)
+                {
+                    // found a candidate. Let's see others.
+                    oldest = e;
+                    nextThink = thinkTime;
+                    #if WIN32
+                        printf("found %s as candidate\r\n", getStringFromIndex(get_qcc_classname(e)));
+                    #endif // WIN32
+                }
             }
         }
     }
@@ -157,8 +188,10 @@ void freeAllRemovableEdicts(void)
     {
 
         int className = get_qcc_classname(e);
+        // remove all gibs, spawn backpacks and dead monsters
         if (className == progs_zom_gib_mdl_string_index || className == progs_gib1_mdl_string_index || className == progs_gib2_mdl_string_index
-            || progs_gib3_mdl_string_index || className == nh_backpack_string_index)
+            || className == progs_gib3_mdl_string_index || className == nh_backpack_string_index
+            || (qcc_classname2type[className] == monster_edict_idx && get_qcc_health(e) <= 0))
         {
             edict_t *r = e;
             e = getNextEdict(e);
@@ -185,6 +218,7 @@ void freeAllRemovableEdicts(void)
  */
 edict_t* ED_Alloc(uint16_t className)
 {
+    STATIC_ASSERT(sizeof(nh_wiz_startfast_entvars_t) == sizeof(missile_entvars_t));
     edict_t *e;
     int reused = false;
 #if !EDICT_LINKED_LIST
@@ -196,11 +230,13 @@ edict_t* ED_Alloc(uint16_t className)
     e = allocEdByType(type);
     if (e == NULL)
     {
-        edictDbgPrintf("Failed on allocation. Trying to reuse an old edict\r\n");
+        #if WIN32
+            printf("Failed on allocation. Trying to reuse an old edict\r\n");
+        #endif
         // not enough memory. We need to clean up less useful stuff.
         // If we have to spawn a gib, then use the oldest gib. If not available, then try free all backpacks and gibs.
-        if (className == progs_zom_gib_mdl_string_index || className == progs_gib1_mdl_string_index || className == progs_gib2_mdl_string_index
-            || progs_gib3_mdl_string_index)
+        // if (className == progs_zom_gib_mdl_string_index || className == progs_gib1_mdl_string_index || className == progs_gib2_mdl_string_index || progs_gib3_mdl_string_index)
+        if (type == missile_edict_idx || type == nh_wiz_startfast_edict_idx) // as gibs are missile, we can swap missiles for gibs.
         {
             e = findOldestRemovableEdict(true);
         }
@@ -210,6 +246,9 @@ edict_t* ED_Alloc(uint16_t className)
         }
         if (e == NULL)
         {
+            #if WIN32
+                printf("freeing all what I can. I want to allocate class %s\r\n", getStringFromIndex(className));
+            #endif
             freeAllRemovableEdicts();
             e = allocEdByType(type);
             if (e == NULL)
@@ -281,7 +320,9 @@ static void ED_ForceRemove(edict_t *ed)
         edictDbgPrintf (">>>>>>>>>>>>>>>>>EdForceFree: Number of edicts: %d\r\n",sv.num_edicts);
     }
     else
+    {
         FIXME("sv.num_edicts == 0 on free\r\n");
+    }
 #if EDICT_LINKED_LIST_WITH_WATCH
     if (watchedEntityForFree == ed)
     {
@@ -1252,6 +1293,21 @@ const entityDef_t entityDefList[] =
     def_ent(func_door),
     def_ent(func_bossgate),
     def_ent(func_episodegate),
+    #if RETAIL_QUAKE_PAK_SUPPORT
+    def_ent(func_illusionary),
+    def_ent(misc_explobox2),
+    def_ent(monster_enforcer),
+    def_ent(item_weapon),
+    def_ent(monster_hell_knight),
+    def_ent(monster_fish),
+    def_ent(monster_shalrath),
+    def_ent(ambient_suck_wind),
+    def_ent(monster_tarbaby),
+    def_ent(light_globe),
+    def_ent(monster_oldone),
+    def_ent(trigger_hurt),
+    def_ent(misc_teleporttrain),
+    #endif
 };
 //
 #define DYNAMIC_STRINGS 0
@@ -1382,7 +1438,7 @@ void strToCstr(char *out, const char *in, int size)
     out[outpos] = 0;
 }
 //
-int16_t ed_findString(const char *value)
+int16_t findStringIndex(const char *value)
 {
     edictDbgPrintf("looking for string %s\r\n", value);
     for (int i = 1; i < tempPrintString_string_index; i++)
@@ -1475,7 +1531,7 @@ void ed_copy_##name(edict_t *dst, edict_t* src) \
 #define implement_string_parse_handler(name)        \
 int ed_set_##name(edict_t *e, const char  *value)       \
 {                                                   \
-    int16_t idx = ed_findString(value);             \
+    int16_t idx = findStringIndex(value);             \
     if (idx != -32768)                                    \
     {                                               \
         set_qcc_##name(e, idx);                        \
@@ -1518,7 +1574,7 @@ int ed_set_classname(edict_t *e, const char *value)
     // note: this will not really change the classname of the edict directly. It is done later.
     // It just changes currentParseClassName.
     (void) e;
-    int16_t idx = ed_findString(value);
+    int16_t idx = findStringIndex(value);
     currentParseClassName = idx;
     if (idx != -32768)
     {
@@ -1837,7 +1893,7 @@ void ED_LoadFromFile(char *data)
     ent = NULL;
     inhibit = 0;
     progs.qcc_time = sv.time;
-    sv.edicts->qcc_classname = ed_findString("worldspawn");
+    sv.edicts->qcc_classname = findStringIndex("worldspawn");
 #if DEBUG_EDICTS
     printf("sv.edicts->qcc_classname %d\r\n", sv.edicts->qcc_classname);
     FIXME("");
@@ -1937,7 +1993,7 @@ void ED_LoadFromFile(char *data)
         void (*spawnFunc)(void) = ED_FindSpawnFunction(getStringFromIndex(get_qcc_classname(ent)));
         if (!spawnFunc)
         {
-            Con_Printf("No spawn function for:\n");
+            Con_Printf("No spawn function for: %s\n", getStringFromIndex(get_qcc_classname(ent)));
             ED_Print(ent);
             ED_ForceRemove(ent);
             FIXME("");

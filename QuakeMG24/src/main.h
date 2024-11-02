@@ -43,8 +43,8 @@
 #define FAST_CPU_SMALL_FLASH              0       // if we have fast cpu but small flash, we can reduce math table sizes
 #define CORRECT_TABLE_ERROR               1       // mandatory for demo compatibility. Will correct errors due to small math tables
 //
-#define CACHE_ALL_COLORMAP_TO_RAM         0       // if enabled this wastes 8.25 more kB, but will improve a little bit the performance
-//////
+#define SPI_FLASH_32BIT_ADDRESS           1       // if 1, the external flash has 32 bit address
+//
 #define PAK_FILE_NAME                     "PAK0.PAK" // this is the name on SD card
 //
 // Board-independent configs

@@ -269,6 +269,38 @@ static LDMA_Descriptor_t ldma_DualRX_SPI_EUSART1_descriptors[] =
 };
 #endif
 //
+/**
+ * @brief Sends to both flash a data, and return the received values
+ * @param firstData
+ * @param secondData
+ * @return data.
+ * @note using 32 bit data because frame could be 16 bit and registers are 32 bit anyway.
+ */
+interleavedSpiTxRxData_t interleavedSpiRead(uint32_t firstData, uint32_t secondData)
+{
+  interleavedSpiData.directMode = 0;
+  interleavedSpiTxRxData_t ret;
+  FIRST_SPI_USART->TXDATA = firstData;
+  SECOND_SPI_USART->TXDATA = secondData;
+  PRS->ASYNC_SWPULSE = (1 << INTERLEAVED_SPI_PRS_CH);
+  while (!(FIRST_SPI_USART->STATUS & EUSART_STATUS_TXENS));
+  while (!(FIRST_SPI_USART->STATUS & EUSART_STATUS_RXIDLE));
+  while (!(SECOND_SPI_USART->STATUS & EUSART_STATUS_TXENS));
+  while (!(SECOND_SPI_USART->STATUS & EUSART_STATUS_RXIDLE));
+  ret.firstData = FIRST_SPI_USART->RXDATA;
+  ret.secondData = SECOND_SPI_USART->RXDATA;
+  FIRST_SPI_USART->CMD_SET = EUSART_CMD_TXDIS | EUSART_CMD_RXDIS;
+  SECOND_SPI_USART->CMD_SET = EUSART_CMD_TXDIS | EUSART_CMD_RXDIS;
+  while ((FIRST_SPI_USART->STATUS & EUSART_STATUS_TXENS));
+  while ((SECOND_SPI_USART->STATUS & EUSART_STATUS_TXENS));
+  return ret;
+}
+interleavedSpiTxRxData_t interleavedSpiReadSameData(uint32_t data)
+{
+  return interleavedSpiRead(data, data);
+}
+
+//
 void interleavedSpiFlashDmaInit(void)
 {
   LDMA->EN = LDMA_EN_EN;
@@ -297,7 +329,7 @@ void interleavedSpiFlashDmaInit(void)
                           LDMA_CH_CTRL_IGNORESREQ |
                           ((3 - 1) <<_LDMA_CH_CTRL_XFERCNT_SHIFT) |
                           LDMA_CH_CTRL_STRUCTTYPE_TRANSFER;
-      LDMA->CH[i].DST = (uint32_t) &interleavedSpiData.rxWord;
+      LDMA->CH[i].DST = (uint32_t) &interleavedSpiData.rxBuffer;
 
     }
     else
@@ -328,6 +360,17 @@ void interleavedSpiFlashPrsInit(void)
   PRS_ConnectConsumer(INTERLEAVED_SPI_PRS_CH, prsTypeAsync, prsConsumerEUSART0_TRIGGER);
   PRS_ConnectConsumer(INTERLEAVED_SPI_PRS_CH, prsTypeAsync, prsConsumerEUSART1_TRIGGER);
 }
+static void interleavedSpiDataSendAddress(uint32_t address)
+{
+    if (interleavedSpiData.addressIs32bit)
+    {
+        // bigger flash chips (>=32 MB) require 4-byte address
+        interleavedSpiReadSameData(address >> 24);
+    }
+    interleavedSpiReadSameData(address >> 16);
+    interleavedSpiReadSameData(address >> 8);
+    interleavedSpiReadSameData(address);
+}
 int interleavedSpiFlashGetSize(void)
 {
     if (0 == flashSize)
@@ -352,6 +395,13 @@ int interleavedSpiFlashGetSize(void)
         if (oldMode)
         {
           interleavedSpiSet16BitDataOperation();
+        }
+        if (flashSize >= 64 * 1024 * 1024)
+        {   // TWO 32 MEGABYTE CHIPS or larger
+            interleavedSpiData.addressIs32bit = 1;
+            FLASH_NCS_LOW();
+            interleavedSpiReadSameData(SPI_FLASH_ENTER_4_BYTE_ADDRESS_MODE);
+            FLASH_NCS_HIGH();
         }
     }
     return flashSize;
@@ -389,9 +439,7 @@ void interleavedSpiFlashEraseTwoSectors(uint32_t logicalAddress)
     FLASH_NCS_LOW();
     // command and address
     interleavedSpiReadSameData(SPI_FLASH_SECTOR_ERASE);
-    interleavedSpiReadSameData(address >> 16);
-    interleavedSpiReadSameData(address >> 8);
-    interleavedSpiReadSameData(address);
+    interleavedSpiDataSendAddress(address);
     //
     FLASH_NCS_HIGH();
     interleavedSpiFlashWaitBusy();
@@ -418,9 +466,7 @@ void interleavedSpiFlashEraseTwo64kBlocks(uint32_t logicalAddress)
   FLASH_NCS_LOW();
   // command and address
   interleavedSpiReadSameData(SPI_FLASH_BLOCK64K_ERASE);
-  interleavedSpiReadSameData(address >> 16);
-  interleavedSpiReadSameData(address >> 8);
-  interleavedSpiReadSameData(address);
+  interleavedSpiDataSendAddress(address);
   //
   FLASH_NCS_HIGH();
   interleavedSpiFlashWaitBusy();
@@ -447,9 +493,7 @@ void interleavedSpiFlashEraseTwo32kBlocks(uint32_t logicalAddress)
   FLASH_NCS_LOW();
   // command and address
   interleavedSpiReadSameData(SPI_FLASH_BLOCK32K_ERASE);
-  interleavedSpiReadSameData(address >> 16);
-  interleavedSpiReadSameData(address >> 8);
-  interleavedSpiReadSameData(address);
+  interleavedSpiDataSendAddress(address);
   //
   FLASH_NCS_HIGH();
   interleavedSpiFlashWaitBusy();
@@ -535,8 +579,11 @@ void interleavedSpiFlashProgram(uint32_t address, uint8_t *buffer, uint32_t size
     }
     uint32_t written = 0;
     address = address & ~3 & SPI_ADDRESS_MASK;    // we can only program at word boundaries
-    // but due to fast read we need an 1 offset
-    address += 2;
+    if (!interleavedSpiData.addressIs32bit)
+    {
+        // but due to fast read we need an 1 offset for small memories using 24-bit address
+        address += 2;
+    }
     while (written < size)
     {
         FLASH_NCS_HIGH();
@@ -545,9 +592,7 @@ void interleavedSpiFlashProgram(uint32_t address, uint8_t *buffer, uint32_t size
         interleavedSpiReadSameData(SPI_FLASH_PAGE_PROGRAM_CMD);
         // there are two flash ICs, so the address we must set is divided by two
         uint32_t flashAddress = address >> 1;
-        interleavedSpiReadSameData(flashAddress >> 16);
-        interleavedSpiReadSameData(flashAddress >> 8);
-        interleavedSpiReadSameData(flashAddress);     //fast reads require +1
+        interleavedSpiDataSendAddress(flashAddress);
         // we can only program within one page at once.
 #if 0
         uint32_t maxWrite = 2 * SPI_FLASH_PAGE_SIZE - (address & (2 * SPI_FLASH_PAGE_SIZE - 1));
@@ -563,22 +608,40 @@ void interleavedSpiFlashProgram(uint32_t address, uint8_t *buffer, uint32_t size
         address += i;
 
 #else
-        int pagePos = (flashAddress & 255);
-        for (; (written < size) && (pagePos < 256); pagePos++)
+        // programming is different
+        if (interleavedSpiData.addressIs32bit)
         {
-            // program four bytes
-            if (pagePos & 1)
+            uint32_t maxWrite = 2 * SPI_FLASH_PAGE_SIZE - (address & (2 * SPI_FLASH_PAGE_SIZE - 1));
+            uint32_t i;
+            for (i = 0; i + written < size && i < maxWrite; i+=4)
             {
-              interleavedSpiRead(buffer[written + 1], buffer[written + 3]);
-            }
-            else
-            {
-              interleavedSpiRead(buffer[written - 2], buffer[written + 2 - 2]);
-            }
-            written += 2;
-            address += 2;
-        }
+                // program four bytes
+                interleavedSpiRead(buffer[i + 1], buffer[i + 3]);
+                interleavedSpiRead(buffer[i], buffer[i + 2]);
 
+            }
+            buffer += i;
+            written += i;
+            address += i;
+        }
+        else
+        {
+            int pagePos = (flashAddress & (SPI_FLASH_PAGE_SIZE - 1));
+            for (; (written < size) && (pagePos < SPI_FLASH_PAGE_SIZE); pagePos++)
+            {
+                // program four bytes
+                    if (pagePos & 1) // note: this will be always the first to occur, because we are programming at 4-bytes boundary (address & 3 = 0) and we are adding two to address (and flash address is address >> 1)
+                    {
+                      interleavedSpiRead(buffer[written + 1], buffer[written + 3]);
+                    }
+                    else
+                    {
+                      interleavedSpiRead(buffer[written - 2], buffer[written + 2 - 2]);
+                    }
+                written += 2;
+                address += 2;
+            }
+        }
 #endif
         FLASH_NCS_HIGH();
         interleavedSpiFlashWaitBusy();
@@ -701,30 +764,31 @@ uint32_t interleavedSpiFlashStartRead(uint32_t address, void *bufferAddress, uin
       // select flash
       // enable transmitters
       PRS->ASYNC_SWLEVEL = (1 << INTERLEAVED_SPI_PRS_CH);      // wait till add data have been transmitted
-      // send tata. Note we do not check, but address will be at most 24 bit
-#define TEST_TEST 0
-#if TEST_TEST
-#define READ_COMMAND 0xb
-      FIRST_SPI_USART->TXDATA = READ_COMMAND | (0x4 << 8); //| (address >> 17);
-      SECOND_SPI_USART->TXDATA =  READ_COMMAND | (0x4 << 8); //| (address >> 17);
+      // send data.
+      if (interleavedSpiData.addressIs32bit)
+      {
+          FIRST_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 25);
+          SECOND_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 25);
+          //
+          uint32_t flashAddress = ((address & ~3) >> 1);
 
-      FIRST_SPI_USART->TXDATA = address >> 9;
-      SECOND_SPI_USART->TXDATA = address >> 9;
+          FIRST_SPI_USART->TXDATA = flashAddress >> 8;
+          SECOND_SPI_USART->TXDATA = flashAddress >> 8;
+          //
+          FIRST_SPI_USART->TXDATA = flashAddress << 8;
+          SECOND_SPI_USART->TXDATA = flashAddress << 8;
 
-      uint32_t flashAddress = ((address & ~3) >> 1);
-      FIRST_SPI_USART->TXDATA = flashAddress;
-      SECOND_SPI_USART->TXDATA = flashAddress;
+      }
+      else
+      {
+          FIRST_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 17);
+          SECOND_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 17);
+          //
+          uint32_t flashAddress = ((address & ~3) >> 1);
 
-#else
-      FIRST_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 17);
-      SECOND_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 17);
-      //
-      uint32_t flashAddress = ((address & ~3) >> 1);
-      //flashAddress = (flashAddress >> 8) | (flashAddress << 8);
-      //__asm volatile ("REV16 %0, %0\n\t" : "+r" (flashAddress));
-      FIRST_SPI_USART->TXDATA = flashAddress;
-      SECOND_SPI_USART->TXDATA = flashAddress;
-#endif
+          FIRST_SPI_USART->TXDATA = flashAddress;
+          SECOND_SPI_USART->TXDATA = flashAddress;
+      }
       // re enable back the reception just before we start receiving the actual data.
       __asm volatile ("cpsie i\r\n");
 #if REMOVE_FIRST_READS
@@ -734,150 +798,14 @@ uint32_t interleavedSpiFlashStartRead(uint32_t address, void *bufferAddress, uin
 #endif
 }
 /**
- * @brief Read one byte from flash. Should be faster
- * @param address: flash address we need to read
- */
-uint8_t interleavedSpiFlashReadByte(uint32_t address)
-{
-  FLASH_NCS_HIGH();
-  EUSART_TypeDef * usart;
-  // determine where is the data.
-  int usartNumber = (address & 2) != 0;
-  uint32_t flashAddress;
-  if (usartNumber )
-  {
-    flashAddress = ((address + 2) >> 1) - (address & 1);
-    usart = SECOND_SPI_USART;//
-  }
-  else
-  {
-    usart = FIRST_SPI_USART; // FIRST_SPI_USART;//
-    flashAddress =  2 + (address >> 1)  - (address & 1); //(address >> 1) + (address & 1) ;
-
-  }
-
-  // disable usart if we were not already in this mode.
-  if (!(interleavedSpiData.directMode & (1 << usartNumber)))
-  {
-    usart->EN = 0;
-    LDMA->CHDIS = (15 << FIRST_SPI_LDMA_CH);
-    PRS->ASYNC_SWLEVEL = 0; //(1 << DUAL_SPI_PRS_CH);
-    interleavedSpiData.directMode |= 1 << usartNumber;
-    while(usart->EN & 2);
-    usart->EN = 1;
-    usart->CMD = EUSART_CMD_TXEN | EUSART_CMD_RXEN;
-    while ((usart->STATUS & (EUSART_STATUS_TXENS | EUSART_STATUS_RXENS)) != (EUSART_STATUS_TXENS | EUSART_STATUS_RXENS));
-  }
-    usart->IF_CLR = EUSART_IF_TXC;
-  FLASH_NCS_LOW();
-
-  usart->TXDATA = (READ_COMMAND << 8) | (flashAddress >> 16);
-    usart->TXDATA = flashAddress;
-    usart->TXDATA = 0; //dummy read to get top byte
-   // while ((usart->STATUS & (EUSART_STATUS_RXIDLE | EUSART_STATUS_TXC)) != (EUSART_STATUS_RXIDLE | EUSART_STATUS_TXC))
-    while (!(usart->IF & (EUSART_IF_TXC)))
-    {
-    }
-    (void)usart->RXDATA;
-    (void)usart->RXDATA;
-    return  (usart->RXDATA) ;
-}
-/**
  * @brief Read one byte from flash using DMA. Should be faster
  * @param address: flash address we need to read
  */
 uint8_t interleavedSpiFlashReadByteDMA(uint32_t address)
 {
-
-  FLASH_NCS_HIGH();
-  EUSART_TypeDef * usart;
-  // determine where is the data.
-  int usartNumber = (address & 2) != 0;
-  uint32_t flashAddress;
-  if (usartNumber )
-  {
-    flashAddress = ((address + 2) >> 1) - (address & 1);
-    usart = SECOND_SPI_USART;//
-  }
-  else
-  {
-    usart = FIRST_SPI_USART;
-    flashAddress =  2 + (address >> 1)  - (address & 1); //(address >> 1) + (address & 1) ;
-
-  }
-
-  // disable usart if we were not already in this mode.
-  if (!(interleavedSpiData.directMode & (1 << usartNumber)))
-  {
-    usart->EN = 0;
-    LDMA->CHDIS = (15 << FIRST_SPI_LDMA_CH);
-    PRS->ASYNC_SWLEVEL = 0; //(1 << DUAL_SPI_PRS_CH);
-    interleavedSpiData.directMode |= 1 << usartNumber;
-    while(usart->EN & 2);
-    usart->EN = 1;
-    usart->CMD = EUSART_CMD_TXEN | EUSART_CMD_RXEN;
-    while ((usart->STATUS & (EUSART_STATUS_TXENS | EUSART_STATUS_RXENS)) != (EUSART_STATUS_TXENS | EUSART_STATUS_RXENS));
-  }
-  FLASH_NCS_LOW();
-  __asm volatile ("cpsid i\r\n");
-  usart->TXDATA = (READ_COMMAND << 8) | (flashAddress >> 16);
-  usart->TXDATA = flashAddress;
-  usart->TXDATA = flashAddress;
-  LDMA->CH[usartNumber + FIRST_SPI_LDMA_BYTE_CH].CTRL =  LDMA_CH_CTRL_DSTMODE_ABSOLUTE |
-                      LDMA_CH_CTRL_SRCMODE_ABSOLUTE |
-                      LDMA_CH_CTRL_DSTINC_NONE |
-                      LDMA_CH_CTRL_SIZE_HALFWORD |
-                      LDMA_CH_CTRL_SRCINC_NONE |
-                      LDMA_CH_CTRL_REQMODE_BLOCK |
-                      LDMA_CH_CTRL_BLOCKSIZE_UNIT1 |
-                   //   LDMA_CH_CTRL_IGNORESREQ |
-                      ((3 - 1) <<_LDMA_CH_CTRL_XFERCNT_SHIFT) |
-                      LDMA_CH_CTRL_STRUCTTYPE_TRANSFER;
-  LDMA->CHDONE_CLR = 15 << (FIRST_SPI_LDMA_CH);
-  LDMA->CHEN_SET = 1 << (FIRST_SPI_LDMA_BYTE_CH + usartNumber);
-  __asm volatile ("cpsie i\r\n");
-  while (!(LDMA->CHDONE & (1 << (FIRST_SPI_LDMA_BYTE_CH + usartNumber))));
-  return interleavedSpiData.rxWord;
+    interleavedSpiFlashAsynchReadByteDMA(address);
+    return interleavedSpiFlashGetAsynchReadByteDMA();
 }
-/**
- * @brief continue read operation and starts reading n bytes to the specified buffer.
- * @param bufferAddress: where we want to store our data. Can't be null. The first 8 bytes will be
- * @param maxBlockSize maximum block size we expect to read afterwards
- * @return the flash address itself
- * @note the device shall be already in dualSpi mode
- * @note read is word aligned (both in size and start address)
- * @note: the buffer shall be  8 + maxBlockSize bytes large, and maxblocksize must be multiple of 8.
- */
-#if 0
-uint32_t interleavedSpiFlashContinueRead(void *bufferAddress, uint32_t maxBlockSize)
-{
-      ldma_DualRX_SPI_EUSART0_descriptors[READ_DESC].xfer.dstAddr = (uint32_t) bufferAddress + 1;
-      ldma_DualRX_SPI_EUSART1_descriptors[READ_DESC].xfer.dstAddr = 2 + (uint32_t) bufferAddress + 1;
-
-      LDMA->CH[FIRST_SPI_LDMA_CH].LINK = (uint32_t) &ldma_DualRX_SPI_EUSART0_descriptors[READ_DESC];
-      LDMA->CH[FIRST_SPI_LDMA_CH + 1].LINK = (uint32_t) &ldma_DualRX_SPI_EUSART1_descriptors[READ_DESC];
-      LDMA->LINKLOAD = (3 << FIRST_SPI_LDMA_CH);
-      __asm volatile ("cpsid i\r\n");
-#if 0
-      // select flash
-      // enable transmitters
-      PRS->ASYNC_SWLEVEL = (1 << INTERLEAVED_SPI_PRS_CH);      // wait till add data have been transmitted
-      // send tata. Note we do not check, but address will be at most 24 bit
-
-      FIRST_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 17);
-      SECOND_SPI_USART->TXDATA = (READ_COMMAND << 8) | (address >> 17);
-      //
-      uint32_t flashAddress = ((address & ~3) >> 1);
-      //flashAddress = (flashAddress >> 8) | (flashAddress << 8);
-      //__asm volatile ("REV16 %0, %0\n\t" : "+r" (flashAddress));
-      FIRST_SPI_USART->TXDATA = flashAddress;
-      SECOND_SPI_USART->TXDATA = flashAddress;
-#endif
-      // re enable back the reception just before we start receiving the actual data.
-      __asm volatile ("cpsie i\r\n");
-      return (uint32_t) bufferAddress;
-}
-#endif
 static void interleavedSpiSet16BitDataOperation()
 {
   FIRST_SPI_USART->EN = 0;
@@ -959,7 +887,7 @@ void interleavedSpiFlashInit(void)
     }
     eusart->CLKDIV = 0;
     eusart->CFG1 = EUSART_SPI_WATERMARK;
-    eusart->CFG2 = _EUSART_CFG2_MASTER_MASK | (40 << 24); // 1/0.5 MHz with/without OC
+    eusart->CFG2 = _EUSART_CFG2_MASTER_MASK | (40 << 24) | (SPI_MODE_CFG << _EUSART_CFG2_CLKPOL_SHIFT); // 1/0.5 MHz with/without OC
     eusart->FRAMECFG = eusartDataBits8; // will be 16 for dual SPI
     eusart->CFG0 = _EUSART_CFG0_SYNC_SYNC | _EUSART_CFG0_MSBF_MASK;
     // Configure frame format
@@ -997,12 +925,12 @@ void interleavedSpiFlashInit(void)
   // go to fast mode
   FIRST_SPI_USART->EN = 0;
   while (FIRST_SPI_USART->EN & EUSART_EN_DISABLING);
-  FIRST_SPI_USART->CFG2 = _EUSART_CFG2_MASTER_MASK | (HIGH_SPEED_EUSART_DIVISOR << 24)  ; // 40/20 MHz with/without OC
+  FIRST_SPI_USART->CFG2 = _EUSART_CFG2_MASTER_MASK | (HIGH_SPEED_EUSART_DIVISOR << 24) | (SPI_MODE_CFG << _EUSART_CFG2_CLKPOL_SHIFT) ; // 40/20 MHz with/without OC
   FIRST_SPI_USART->EN = EUSART_EN_EN;
   //
   SECOND_SPI_USART->EN = 0;
   while (SECOND_SPI_USART->EN & EUSART_EN_DISABLING);
-  SECOND_SPI_USART->CFG2 = _EUSART_CFG2_MASTER_MASK | (HIGH_SPEED_EUSART_DIVISOR << 24);
+  SECOND_SPI_USART->CFG2 = _EUSART_CFG2_MASTER_MASK | (HIGH_SPEED_EUSART_DIVISOR << 24)| (SPI_MODE_CFG << _EUSART_CFG2_CLKPOL_SHIFT);
   SECOND_SPI_USART->EN = EUSART_EN_EN;
   //
   interleavedSpiFlashGetSize();

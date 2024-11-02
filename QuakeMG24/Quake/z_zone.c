@@ -102,6 +102,9 @@
 #endif
 
 #include "quakedef.h"
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #if !WIN32
 #include "memory_defs.h"
 #endif
@@ -117,17 +120,19 @@
 #define ZMALLOC_STAT 0
 #endif
 // End Tunables
-#if ZMALLOC_STAT
-int numblocks = 0;
-static int largest_occupied = 0;
-#endif
+
 
 static const int HEADER_SIZE = (sizeof(memblock_t) + CHUNK_SIZE - 1) & ~(CHUNK_SIZE - 1);
 
-static int free_memory = 0;
+
 
 typedef struct
 {
+    #if ZMALLOC_STAT
+        int numblocks;
+        int largest_occupied;
+    #endif
+    int free_memory;
     // start / end cap for linked list
     memblock_t blocklist;
 
@@ -144,6 +149,10 @@ memzone_t *mainzone;
 #if MAX_STATIC_ZONE < 262144 && MAX_STATIC_ZONE >= 65536
   extern inline unsigned short getShortPtr(void *longPtr);
 #endif
+int getZoneRemainingSize(void)
+{
+    return mainzone->free_memory;
+}
 uint32_t getStaticZoneSize(void)
 {
   return sizeof(staticZone);
@@ -316,6 +325,11 @@ void Z_Init(void)
 
     // free block
     block->tag = PU_FREE;
+    mainzone->free_memory = MAX_STATIC_ZONE - sizeof(memzone_t);
+#if ZMALLOC_STAT
+    mainzone->numblocks = 0;
+    mainzone->largest_occupied = 0;
+#endif
 
 }
 
@@ -417,7 +431,7 @@ void* Z_Malloc2(uint32_t size, int tag, void **user, const char *sz, int canFail
         setMemblockPrev(getMemblockNext(newblock), newblock);
         setMemblockNext(base, newblock);
     }
-    free_memory -= getMemblockSize(base);
+    mainzone->free_memory -= getMemblockSize(base);
     //
     if (user == NULL && tag >= PU_PURGELEVEL)
     {
@@ -435,16 +449,15 @@ void* Z_Malloc2(uint32_t size, int tag, void **user, const char *sz, int canFail
     // next allocation will start looking here
     mainzone->rover = getMemblockNext(base);
 #if ZMALLOC_STAT
-    numblocks++;
-    if (free_memory < largest_occupied)
-        largest_occupied = free_memory;
+    mainzone->numblocks++;
+    if (mainzone->free_memory < mainzone->largest_occupied)
+        mainzone->largest_occupied = mainzone->free_memory;
 #endif
 
     ZONE_EXIT_CRITICAL();
 #if ZMALLOC_STAT
-    printf("Mall: num %d, occ. %d lrgst %d Addr %04x. BlkSz %d %s\r\n", numblocks, -free_memory, -largest_occupied, base, getMemblockSize(base), sz);
+    printf("Mall: num %d, occ. %d lrgst %d Addr %04x. BlkSz %d %s\r\n", mainzone->numblocks, mainzone->free_memory, mainzone->largest_occupied, base, getMemblockSize(base), sz);
 #endif
-
     return result;
 }
 
@@ -462,14 +475,13 @@ void (Z_Free)(void *p)
 
     memblock_t *block = (memblock_t*) ((char*) p - HEADER_SIZE);
 
-    if (getMemblockUser(block) && block->tag != PU_FREE && block->tag != PU_POOL) // Nullify user if one exists
+    if (getMemblockUser(block) && block->tag != PU_FREE) // Nullify user if one exists
     {
-        printf("Nullifying\r\n");
         *(getMemblockUser(block)) = NULL;
     }
     // free memory
     size_t freedBlockSize = getMemblockSize(block);
-    free_memory += freedBlockSize;
+    mainzone->free_memory += freedBlockSize;
 
     // mark this block as free
     block->tag = PU_FREE;
@@ -494,19 +506,17 @@ void (Z_Free)(void *p)
     if (other->tag == PU_FREE)
     {
         // merge the next free block onto the end
-        //block->next_sptr = other->next_sptr;
         setMemblockNext(block, getMemblockNext(other));
-//        getMemblockNext(block)->prev_sptr = getShortPtr(block);
         setMemblockPrev(getMemblockNext(block), block);
         if (other == mainzone->rover)
             mainzone->rover = block;
     }
 #if ZMALLOC_STAT
-    numblocks--;
+    mainzone->numblocks--;
 #endif
     ZONE_EXIT_CRITICAL();
 #if ZMALLOC_STAT
-    printf("Free: num: %d, occ. %d lrgst %d Addr %04x. BlkSz %d\r\n", numblocks, -free_memory, -largest_occupied, (byte*) block - (byte*)staticZone, freedBlockSize);
+    printf("Free: num: %d, occ. %d lrgst %d Addr %04x. BlkSz %d\r\n", mainzone->numblocks, mainzone->free_memory, mainzone->largest_occupied, (byte*) block - (byte*)staticZone, freedBlockSize);
 #endif
 
 }
@@ -527,7 +537,9 @@ void Z_FreeTags(int lowtag, int hightag)
             continue;
 
         if (block->tag >= lowtag && block->tag <= hightag)
+        {
             Z_Free((byte*) block + sizeof(memblock_t));
+        }
     }
     ZONE_EXIT_CRITICAL();
 }
@@ -567,7 +579,9 @@ void* (Z_CallocFailable)(size_t n1, size_t n2, int tag, void **user)
     {
         r = Z_Malloc2(n1, tag, user, "ZCF", true);
         if (r)
+        {
             memset(r, 0, n1);
+        }
     }
     ZONE_EXIT_CRITICAL();
     return r;

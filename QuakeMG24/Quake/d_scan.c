@@ -79,9 +79,9 @@ void D_WarpScreen(void)
 	}
 
 	turb = intsintable + ((int)(cl.time*SPEED)&(CYCLE-1));
-	dest = vid.buffer + scr_vrect.y * vid.rowbytes + scr_vrect.x;
+	dest = vid.buffer + scr_vrect.y * VID_ROWBYTES + scr_vrect.x;
 
-	for (v=0 ; v<scr_vrect.height ; v++, dest += vid.rowbytes)
+	for (v=0 ; v<scr_vrect.height ; v++, dest += VID_ROWBYTES)
 	{
 		col = &column[turb[v]];
 		row = &rowptr[v];
@@ -190,7 +190,7 @@ void D_WarpScreen(void)
 		rowptr[v] = backupRows [(int)((float)v * h / (h + AMP2 * 2)) % BACKROWS];
     }
 
-	for (v=0 ; v<scr_vrect.height ; v++, dest += vid.rowbytes)
+	for (v=0 ; v<scr_vrect.height ; v++, dest += VID_ROWBYTES)
 	{
 		col = &column[turb[v]];
 		rowp = &rowptr[v];

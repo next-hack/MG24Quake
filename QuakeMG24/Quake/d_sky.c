@@ -48,8 +48,8 @@ void D_Sky_uv_To_st(int u, int v, fixed16_t *s, fixed16_t *t)
     else
         temp = (float) _g->r_refdef.vrect.height;
 
-    wu = 8192.0f * (float) (u - ((int) vid.width >> 1)) / temp;
-    wv = 8192.0f * (float) (((int) vid.height >> 1) - v) / temp;
+    wu = 8192.0f * (float) (u - ((int) VID_WIDTH >> 1)) / temp;
+    wv = 8192.0f * (float) (((int) VID_HEIGHT >> 1) - v) / temp;
 
     end[0] = 4096 * _g->vpn[0] + wu * _g->vright[0] + wv * _g->vup[0];
     end[1] = 4096 * _g->vpn[1] + wu * _g->vright[1] + wv * _g->vup[1];

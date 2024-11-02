@@ -29,7 +29,9 @@
 // net_main.c
 #include "quakedef.h"
 #include "net_vcr.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 qsocket_t *net_activeSockets = NULL;
 qsocket_t *net_freeSockets = NULL;
 const int net_numsockets = 2;

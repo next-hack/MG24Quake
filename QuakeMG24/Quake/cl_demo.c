@@ -33,7 +33,9 @@
 #else
 #include "extMemory.h"
 #endif
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 void CL_FinishTimeDemo(void);
 /*
  ==============================================================================
@@ -401,6 +403,10 @@ void CL_PlayDemo_f(void)
     if (neg)
         _g->cls.forcetrack = -_g->cls.forcetrack;
     resetTempModKnown(NULL, NULL);
+    //
+    //
+    COM_ResetDynamicMemory();   // next-hack: let's have a clean start to prevent memory fragmentation.
+    //
     if (!_g->cl_lightstyle)
         _g->cl_lightstyle = Z_Calloc(sizeof(*_g->cl_lightstyle), MAX_LIGHTSTYLES, PU_STATIC, 0);
     _g->cls.timedemo = FORCE_TIME_DEMO;

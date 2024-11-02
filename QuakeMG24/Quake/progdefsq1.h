@@ -576,7 +576,7 @@ typedef struct
 	int32_t	    qcc_dmg_save : 10;   // FIXME: how much?
 	uint32_t	qcc_cnt : 5;            // FIXME: max 20
     uint32_t	qcc_count :3 ;      // FIXME: i found 4... let put 3 bits (7)
-	uint32_t	qcc_lip: 8;        // FIXME saw max is 8
+	int32_t	qcc_lip: 10;        // FIXME saw max is
 	uint32_t	qcc_state:2;          // 0-3
 	uint32_t	qcc_height : 12;         // FIXME set max is larger!
 	uint32_t	qcc_healamount : 8; // max 100
@@ -735,7 +735,7 @@ typedef struct
 	int32_t	    qcc_dmg_save : 10;   // FIXME: how much?
 	uint32_t	qcc_cnt : 5;            // FIXME: max 20
     uint32_t	qcc_count :3 ;      // FIXME: i found 4... let put 3 bits (7)
-	uint32_t	qcc_lip: 8;        // FIXME saw max is 8
+	int32_t	    qcc_lip: 16;        // FIXME saw max is 8 <--- NO THIS WAS EVEN NEGATIVE AND > 200
 	uint32_t	qcc_state:2;          // 0-3
 	uint32_t	qcc_height : 12;         // FIXME set max to 200, but might be higher.
 	uint32_t	qcc_healamount : 8; // max 100
@@ -934,10 +934,10 @@ typedef struct
 	uint32_t	qcc_modelindex:8;     // can be uint16 or lower
   uint32_t  qcc_skin:8;           // FIXME: sure is enough, probably smaller is ok too
 
+  int32_t qcc_enemy : 16;       // can be 15 bits.
   uint32_t  qcc_effects:4;        // flag. MAxValue 8. 4 bits.
   int32_t	    qcc_watertype : 5;          // negative values up to -14
-
-
+  // 7 bits free.
 } missile_entvars_t;
 typedef struct
 {
@@ -1044,7 +1044,9 @@ typedef struct
   uint32_t  qcc_takedamage : 2;        // can be 0, 1 or 2
 
 
+  uint32_t      qcc_dmg :   16;      // FIXME: I have seen 10, so we can reduce to 5 bits
   uint32_t      qcc_th_die : 11;
+  // 5 bits spare
 
 } trigger_entvars_t;
 typedef struct
@@ -1102,8 +1104,9 @@ typedef struct
 	short	    qcc_delay;      // this is normally a small value, but it might be decimal, so need a different handling. Probably 8p8 would be ok
 	uint32_t	qcc_height : 12;         // FIXME set max to 200, but might be higher.
 	uint32_t	qcc_effects:4;        // flag. MAxValue 8. 4 bits.
-	uint32_t	qcc_lip: 8;        // FIXME saw max is 8
 	uint32_t	qcc_modelindex:8;     // can be uint16 or lower
+    uint32_t	qcc_cnt : 8;            // FIXME: max 20
+
 
 	int32_t	    qcc_health : 15;         // MUST be signed. Must be at least 10k for doors. Useless.
     uint32_t	qcc_max_health : 15;        // fixme: needs to be at least 10000 for doors. How useless.
@@ -1118,7 +1121,7 @@ typedef struct
 	uint32_t	qcc_touch : 11;
  	uint32_t	qcc_sounds : 3; // 0..4
 	uint32_t	qcc_state:2;          // 0-3
-    uint32_t	qcc_cnt : 5;            // FIXME: max 20
+	// 5 bits spare
     //
  	uint32_t	qcc_think : 11;
 	uint32_t	qcc_blocked : 11;
@@ -1127,14 +1130,20 @@ typedef struct
     //
 	uint32_t	qcc_th_die : 11;
     int32_t	    qcc_noise : 16;         // can be less.
+    // 5 bits spare
 
 	uint32_t	qcc_th_pain : 11;
     uint32_t	qcc_think1 : 11;
+	int32_t	qcc_lip: 10;        // FIXME saw max is 8 <--- No, it is even negative and can be very large as well >200
 
 } func_entvars_t;
 
 typedef struct
 {
+    // these have been added to support Quake full
+    float   qcc_t_width;
+    float   qcc_fly_sound;
+    // end support quake full
 	float	qcc_pausetime;  // float.
 //	float	qcc_waitmin;    // float
     float	qcc_dmgtime;        // float
@@ -1532,14 +1541,17 @@ typedef struct
     shortVector qcc_view_ofs;
 	ENTITY_TYPE	qcc_enemy;
 	//
-	ENTITY_TYPE	qcc_oldenemy;
-	ENTITY_TYPE	qcc_goalentity;
-    ENTITY_TYPE	qcc_movetarget;
-    ENTITY_TYPE	qcc_groundentity;       //
+	int32_t	qcc_oldenemy : 15;
+    uint32_t	qcc_lefty : 1;
+	int32_t	qcc_goalentity : 15;
+    int32_t	qcc_movetarget : 15;
+    int32_t	qcc_groundentity : 15;       //
+ 	uint32_t	qcc_solid : 3;          // maxvalue 4
     //
     //
-	string_t	qcc_targetname;
-    string_t	qcc_model;
+	int32_t	qcc_targetname : 12;
+    int32_t	qcc_model : 12;
+	uint32_t	qcc_modelindex:8;     // can be uint16 or lower
     ENTITY_TYPE	qcc_chain;
     short	qcc_yaw_speed;              // angle ?
     //
@@ -1555,20 +1567,19 @@ typedef struct
 	int32_t	    qcc_health : 16;         // MUST be signed
 
     uint32_t	qcc_flags: 13;              // max 4096
-	uint32_t	qcc_solid : 3;          // maxvalue 4
-	uint32_t	qcc_modelindex:8;     // can be uint16 or lower
-    uint32_t	qcc_frame : 8;          // FIXME: ENOUGH?
+	uint32_t	qcc_ammo_nails : 7;        // uint16
+    int32_t     qcc_message: 12;
+
 
     uint32_t	qcc_ammo_shells : 7;       // uint16
     uint32_t    qcc_think : 11;
     uint32_t    qcc_touch : 11;
     uint32_t	qcc_attack_state    : 3;    // max 4
 
-	uint32_t	qcc_ammo_nails : 7;        // uint16
+    uint32_t	qcc_frame : 8;          // FIXME: ENOUGH?
     uint32_t	qcc_th_stand : 11;
 	uint32_t	qcc_th_walk : 11;
     uint32_t	qcc_waterlevel : 2;         // 0..3
-    uint32_t	qcc_lefty : 1;
 
 
 	uint32_t	qcc_th_run : 11;

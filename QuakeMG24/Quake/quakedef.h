@@ -34,13 +34,16 @@
 // debugging symbols
 #define ENABLE_DEMO                     1           // if 0, it won't load demo.
 #define FORCE_START_GAME_IF_NO_DEMO     1           // if 1, and ENABLE_DEMO is 0, then it will start a new game by default
-#define START_MAP                       "start"      // start map of the new game e.g. "e1m4" or "start"
+#define START_MAP                       "e1m1"      // start map of the new game e.g. "e1m4" or "start"
 #define START_SKILL                     1           // start skill of the new game. 0 = easy, 1 = normal, 2 = hard, 3 = nightmare.
 #define FORCE_TIME_DEMO                 0           // if 1, it will force timedemo. Note that ENABLE_DEMO shall be 1 as well
 #define TIME_DEMO_NAME                  "demo3"     // timedemo name. We use timedemo 3 for comparison with: https://thandor.net/benchmark/33
 
+#define RETAIL_QUAKE_PAK_SUPPORT        1           // 1 will support the full retail version
 //
+#define CACHE_SKINS_TO_FLASH            1           //
 //
+#define MIN_ZONE_FREE_TO_CACHE_COLORMAP (16384 + 3900)
 
 
 #if !WIN32
@@ -58,13 +61,13 @@
 #define FIXME(reason) do{printf("\r\n%s at line %d file %s\r\n", reason, __LINE__, __FILE__); system("pause");}while(0)
 #else
 
-#define FIXME(reason) do{printf("\r\n%s at line %d file %s\r\n", reason, __LINE__, __FILE__); }while(0)
+#define FIXME(reason) do{/*printf("\r\n%s at line %d file %s\r\n", reason, __LINE__, __FILE__);*/ }while(0)
 #endif
 #if WIN32
 #define __ASM(m) FIXME(m)
 #define waitForDisplayDMA(y)
 #endif
-#define STATIC_ASSERT(condition) ((void)sizeof(char[1 - 2 * !(condition)]))
+#define STATIC_ASSERT(condition) ((void) sizeof(char[1 - 2 * !(condition)]))
 #define SCREEN_HEIGHT 200
 #define SCREEN_WIDTH 320
 // aux buffer is the last part of the z-buffer, so that when the dma is still drawing there, the bottom part is free.
@@ -85,6 +88,7 @@
 #include "printf.h"
 #endif
 #if WIN32
+#include <string.h>
 #include "extMemoryWin32.h"
 #else
 #include "extMemory.h"
@@ -154,7 +158,16 @@ extern int alias_drawn_pixels;
 #define	r_worldpolysbacktofront         0
 #define	MAX_SFX		255         // strictly less than 256, we use byte index!
 #define DRAW_BUFFER_HEIGHT  152
-#define MAX_STATIC_ZONE                 ( 32768 + 3300 + 1300 + 1024 + 768)
+#if RETAIL_QUAKE_PAK_SUPPORT
+#define MAX_STATIC_ZONE                 ( 48412)
+#define MAX_TEXTURE_SIZE   (16384 + 4096) //note: in the surf buffer the medge cache offset is stored! And there are up to 14.8k medges in the shareware version
+
+#else
+//#define MAX_STATIC_ZONE                 ( 32768 + 3300 + 1300 + 1024 + 768 )
+#define MAX_TEXTURE_SIZE   (14800 * 2) //note: in the surf buffer the medge cache offset is stored! And there are up to 14.8k medges in the shareware version
+#define MAX_STATIC_ZONE                 (39292)
+
+#endif
 #define QDFLOAT                 float
 #define CREATE_DELTA_LIGHT_MAP          1
 #define BETTER_EDICT_COMPATIBILITY      1
@@ -443,8 +456,13 @@ void	VID_UnlockBuffer (void);
 //
 // per-level limits
 //
+#if RETAIL_QUAKE_PAK_SUPPORT
+#define MAX_SURFACES    7104        // tuned?
+#define	MAX_EDICTS		408			// FIXME: ouch! ouch! ouch!
+#else
 #define MAX_SURFACES    6144        // tuned?
 #define	MAX_EDICTS		400			// FIXME: ouch! ouch! ouch!
+#endif
 #if STATIC_ENTITY_SUPPORT
 #define ADDITIONAL_CLIENT_ENTITIES      0      // this is for demo and static edicts support
 #else
@@ -724,6 +742,7 @@ typedef struct
     uint8_t *nodeHadDlight;
     void *areanode;
     int numareadnodes;
+    uint32_t pcolormap;
 } savegame_t;
 typedef struct
 {

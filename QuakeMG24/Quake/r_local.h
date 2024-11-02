@@ -213,7 +213,7 @@ extern void R_EdgeCodeStart (void);
 extern void R_EdgeCodeEnd (void);
 
 extern void R_RotateBmodel (void);
-
+extern void clearCachedEdgeOffsets(void);
 extern int	c_faceclip;
 extern int	r_polycount;
 extern int	r_wholepolycount;

@@ -61,8 +61,8 @@
 #include "memory_defs.h"
 #include "quakedef.h"
 unsigned int I_GetTimeMicrosecs(void);
-#define TEST_YMODEM                           0
-#define KEY_COMBINATION_FOR_WAD_UPLOAD        (KEY_ALT | KEY_FIRE | KEY_UP | KEY_DOWN)
+//#define TEST_YMODEM                           0
+#define KEY_COMBINATION_FOR_DATA_UPLOAD        (KEY_ALT | KEY_FIRE | KEY_UP | KEY_DOWN)
 #include "sl_device_init_dpll_config.h"
 // -----------------------------------------------------------------------------
 //                              Macros and Typedefs
@@ -85,16 +85,25 @@ unsigned int I_GetTimeMicrosecs(void);
 /******************************************************************************
  * Main function
  *****************************************************************************/
-void dumpToDisplay(int start)
+void dumpToDisplay(int start, int mode)
 {
 
   extMemSetCurrentAddress(start);
-  for (int i = 0; i < 40; i++)
+  for (int i = 0; i < 128; i++)
   {
     char linebuffer[9+8] = {0};
     char clinebuffer[8];
     char printbuffer[43];
-    extMemGetDataFromCurrentAddress(linebuffer, 8);
+    if (mode)
+    {
+        extMemGetDataFromCurrentAddress(linebuffer, 8);
+    }
+    else
+    {
+        for (int j = 0; j < 8; j++)
+           linebuffer[j] = extMemGetByteFromAddress((void*)(start + j + 8 * i));
+        extMemSetCurrentAddress(start + 8 * i);
+    }
     linebuffer[8] = 0;
     memcpy(clinebuffer, linebuffer, 8);
     for (int x = 0; x < 8; x++)
@@ -117,7 +126,7 @@ void dumpToDisplay(int start)
     displayPrintln(1, "%s", printbuffer );
   }
 }
-sl_status_t overclock(void)
+void overclock(void)
 {
   CMU_DPLLInit_TypeDef dpll_init = {
     .frequency = 80000000,    // this is just to shut up the asserts.
@@ -140,20 +149,12 @@ sl_status_t overclock(void)
     CMU_CLOCK_SELECT_SET(SYSCLK, FSRCO);
   }
 
-#if (_SILICON_LABS_32B_SERIES_2_CONFIG > 1)
   CMU_ClockEnable(cmuClock_DPLL0, true);
-#endif
 
-  bool success = CMU_DPLLLock(&dpll_init);
+  CMU_DPLLLock(&dpll_init);
 
   if (selected_sysclk == cmuSelect_HFRCODPLL) {
     CMU_CLOCK_SELECT_SET(SYSCLK, HFRCODPLL);
-  }
-
-  if (success) {
-    return SL_STATUS_OK;
-  } else {
-    return SL_STATUS_FAIL;
   }
 }
 #include "sl_memory_config.h"
@@ -161,7 +162,7 @@ extern uint32_t __StackLimit[];                // not really an array!
 void checkForDataFileUpdate(int c)
 {
   #if !TEST_YMODEM
- if ((c & KEY_COMBINATION_FOR_WAD_UPLOAD) == (KEY_COMBINATION_FOR_WAD_UPLOAD))
+ if ((c & KEY_COMBINATION_FOR_DATA_UPLOAD) == (KEY_COMBINATION_FOR_DATA_UPLOAD))
 #endif
   {
     // let's first try to mount SD
@@ -192,6 +193,7 @@ void checkForDataFileUpdate(int c)
             SET_FLASH_MODE();
             extMemEraseAll();
             displayPrintln(1, "Programming, please wait");
+            int i = 0;
             while (fsize > 0)
             {
               UINT br = 0;
@@ -212,7 +214,11 @@ void checkForDataFileUpdate(int c)
               extMemProgram(address, buffer, br);
               fsize -= br;
               address += br;
-              displayPrintln(1, "%d bytes remaining...", fsize);
+              if (!(i % 8)) // displayPrintln takes time. Let's print only 1 over 8
+              {
+                  displayPrintln(1, "%d bytes remaining...", fsize);
+              }
+              i++;
             }
             displayPrintln(1, "PAK copy success!");
           }
@@ -237,147 +243,165 @@ void checkForDataFileUpdate(int c)
       NVIC_SystemReset();
   }
 }
+static const uint32_t clocks[] =
+{
+    cmuClock_EUSART0, cmuClock_EUSART1, cmuClock_PRS, cmuClock_LDMA,
+    cmuClock_LDMAXBAR, cmuClock_SYSCFG, cmuClock_USART0, CAT(cmuClock_TIMER, TICK_TIMER_NUMBER),  CAT(cmuClock_TIMER, TIME_TIMER_NUMBER),
+    cmuClock_GPIO, cmuClock_ICACHE, cmuClock_DMEM
+};
+__attribute__((noinline)) static void sysInit(void)  //noinline attribute will reduce stack usage.
+{
+    // Initialize Silicon Labs device, system, service(s) and protocol stack(s).
+    // Note that if the kernel is present, processing task(s) will be created by
+    // this call.
+    // Note: system sl_system_init() call was split to allow using the malloc wrapper
+    sl_platform_init();
+    //
+  #if OVERCLOCK
+    overclock();
+  #endif
+    //
+    // Enable clocks and overclock PCLK so it is the same as CPU clk
+    CMU_ClockDivSet(cmuClock_PCLK, 1);
+
+    for (size_t i = 0; i < sizeof (clocks) / sizeof(clocks[0]); i++)
+    {
+      CMU_ClockEnable(clocks[i], true);
+    }
+    //
+    // Enable TICK_TIMER for generic delay
+    TICK_TIMER->CFG = TIMER_CFG_PRESC_DIV8;
+    TICK_TIMER->EN = TIMER_EN_EN;
+    TICK_TIMER->TOP = 0xFFFFFFFF;
+    TICK_TIMER->CMD = TIMER_CMD_START;
+    // Enable TIME TIMER for ms delay
+    TIME_TIMER->CFG = TIMER_CFG_PRESC_DIV1024;
+    TIME_TIMER->EN = TIMER_EN_EN;
+    TIME_TIMER->TOP = 0xFFFFFFFF;
+    TIME_TIMER->CMD = TIMER_CMD_START;
+
+    // enable radio to be able to use seqram
+    CMU->RADIOCLKCTRL = CMU_RADIOCLKCTRL_EN;
+    CMU->SYSCLKCTRL &= ~CMU_SYSCLKCTRL_RHCLKPRESC;
+    memset((void*)RDMEM_SEQRAM_SEQRAM_MEM_BASE, 0, 20480);    // clear seqram.
+    //
+    FLASH_NCS_HIGH();
+
+    //
+  #ifdef VCOM_ENABLE_PORT
+    GPIO_PinModeSet(VCOM_ENABLE_PORT, VCOM_ENABLE_PIN, gpioModePushPull, 1);
+  #endif
+    GPIO_PinModeSet(VCOM_TX_PORT, VCOM_TX_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(VCOM_RX_PORT, VCOM_RX_PIN, gpioModePushPull, 1);
+    //
+    //
+    displayInit();
+    //
+
+    initGraphics();
+    displayPrintln(0, "Quake on EFR32MG24 by Nicola Wrachien");
+    displayPrintln(1, "Build date %s", __DATE__);
+    displayPrintln(1, "Build time %s", __TIME__);
+    //
+    // measure refresh time!
+    //
+    uint32_t oldTime = TICK_TIMER->CNT;
+    startDisplayRefresh(0, 1);
+    startDisplayRefresh(0, 1);
+    oldTime = TICK_TIMER->CNT - oldTime;
+    //
+    displayPrintln(1, "Frame refresh time %d us!", oldTime / 10);
+    displayPrintln(1, "Memzone size %d bytes.", getStaticZoneSize());
+    displayPrintln(1, "Code Size: %d bytes", FLASH_CODE_SIZE);
+    displayPrintln(1, "Trying to read external flash...");
+    delay(500);
+    extMemInit();
+
+    displayPrintln(1, "SPI Flash Size: %d MB.", extMemGetSize() / 1048576);
+
+    displayPrintln(1, "HFXO: %d Hz", SystemHFXOClockGet());
+    displayPrintln(1, "HCLK: %d Hz", SystemHFXOClockGet() / (OC_PLLD + 1) * (OC_PLLN + 1) );
+
+    FLASH_NCS_HIGH();
+    displayPrintln(1, "");
+#if BOARD == BOARD_THEGAMEPAD_ARDUINONANOMATTER
+    displayPrintln(1, "Press UP & DOWN & 4 & 3");
+
+    #else
+    displayPrintln(1, "Press ALT & FIRE & UP & DOWN");
+#endif
+    displayPrintln(1, "to start PAK installation.");
+    delay(200);
+
+    FLASH_NCS_LOW();
+    SET_FLASH_MODE();
+    // Let's check if we shall go in PAK upload mode
+    initKeyboard();
+    uint16_t c;
+  #define TEST_KEYS 0 // define to 1 to get displayed the key code, and quickly fill the correct defines.
+  #if TEST_KEYS
+    while (1)
+  #endif
+    {
+        getKeys(&c);
+
+        displayPrintln(1, "Key Pressed: %04x", c);
+        printf("Keys pressed: %x\r\n", c);
+    }
+    //
+      checkForDataFileUpdate(c);
+
+  #if BOARD == BOARD_THEGAMEPAD_ARDUINONANOMATTER
+    GPIO_PinModeSet(gpioPortC, 3, gpioModePushPull, 0);
+  #endif
+
+    //dumpToDisplay(0x407251fc, 1); // to check read block.
+    //dumpToDisplay(0x407251fc, 0); // to check read byte
+
+    //
+    SET_FLASH_MODE();
+    //
+    Z_Init();
+    //
+    // next-hack. rand() uses malloc, which in turn uses Z_Malloc() with tag PU_WRAP. To make sure we don't fragment, we uses rand() the first time right
+    // after Z_Init();
+    rand();
+}
+static void game(void)
+{
+    float    time, oldtime, newtime;
+
+    Cvar_Init();
+  #if WIN32
+    Sys_Init();
+  #endif
+    memset(_g, 0, sizeof(global_data_t));
+    Host_Init(NULL);
+    oldtime = Sys_FloatTime () - 0.1f;
+    while (1)
+    {
+  // find time spent rendering last frame
+        newtime = Sys_FloatTime ();
+        time = newtime - oldtime;
+        if (time > sys_ticrate*2)
+            oldtime = newtime;
+        else
+            oldtime += time;
+        Host_Frame (time);
+
+    }
+
+}
 int main(void)
 {
   for (int i = 0; i < SL_STACK_SIZE / 4; i++)
   {
     __StackLimit[i] = 0xEFBEADDE;  // stack canary.
   }
-  // Initialize Silicon Labs device, system, service(s) and protocol stack(s).
-  // Note that if the kernel is present, processing task(s) will be created by
-  // this call.
-  // Note: system sl_system_init() call was split to allow using the malloc wrapper
-  sl_platform_init();
-  //
-#if OVERCLOCK
-  overclock();
-#endif
-  //
-  // Enable clocks and overclock PCLK so it is the same as CPU clk
-  CMU_ClockDivSet(cmuClock_PCLK, 1);
-  const uint32_t clocks[] =
-  {
-      cmuClock_EUSART0, cmuClock_EUSART1, cmuClock_PRS, cmuClock_LDMA,
-      cmuClock_LDMAXBAR, cmuClock_SYSCFG, cmuClock_USART0, CAT(cmuClock_TIMER, TICK_TIMER_NUMBER),  CAT(cmuClock_TIMER, TIME_TIMER_NUMBER),
-      cmuClock_GPIO, cmuClock_ICACHE, cmuClock_DMEM
-  };
-  for (size_t i = 0; i < sizeof (clocks) / sizeof(clocks[0]); i++)
-  {
-    CMU_ClockEnable(clocks[i], true);
-  }
-  //
-  // Enable TICK_TIMER for generic delay
-  TICK_TIMER->CFG = TIMER_CFG_PRESC_DIV8;
-  TICK_TIMER->EN = TIMER_EN_EN;
-  TICK_TIMER->TOP = 0xFFFFFFFF;
-  TICK_TIMER->CMD = TIMER_CMD_START;
-  // Enable TIME TIMER for ms delay
-  TIME_TIMER->CFG = TIMER_CFG_PRESC_DIV1024;
-  TIME_TIMER->EN = TIMER_EN_EN;
-  TIME_TIMER->TOP = 0xFFFFFFFF;
-  TIME_TIMER->CMD = TIMER_CMD_START;
 
-  // enable radio to be able to use seqram
-  CMU->RADIOCLKCTRL = CMU_RADIOCLKCTRL_EN;
-  CMU->SYSCLKCTRL &= ~CMU_SYSCLKCTRL_RHCLKPRESC;
-  memset((void*)RDMEM_SEQRAM_SEQRAM_MEM_BASE, 0, 20480);    // clear seqram.
-  //
-  FLASH_NCS_HIGH();
-
-  //
-#ifdef VCOM_ENABLE_PORT
-  GPIO_PinModeSet(VCOM_ENABLE_PORT, VCOM_ENABLE_PIN, gpioModePushPull, 1);
-#endif
-  GPIO_PinModeSet(VCOM_TX_PORT, VCOM_TX_PIN, gpioModePushPull, 1);
-  GPIO_PinModeSet(VCOM_RX_PORT, VCOM_RX_PIN, gpioModePushPull, 1);
-  //
-  //
-  displayInit();
-  //
-
-  initGraphics();
-  displayPrintln(0, "Quake on EFR32MG24 by Nicola Wrachien");
-  displayPrintln(1, "Build date %s", __DATE__);
-  displayPrintln(1, "Build time %s", __TIME__);
-  //
-  // measure refresh time!
-  //
-  uint32_t oldTime = TICK_TIMER->CNT;
-  startDisplayRefresh(0, 1);
-  startDisplayRefresh(0, 1);
-  oldTime = TICK_TIMER->CNT - oldTime;
-  //
-  displayPrintln(1, "Frame refresh time %d us!", oldTime / 10);
-  displayPrintln(1, "Memzone size %d bytes.", getStaticZoneSize());
-  displayPrintln(1, "Code Size: %d bytes", FLASH_CODE_SIZE);
-  displayPrintln(1, "Trying to read external flash...");
-  delay(500);
-  extMemInit();
-
-  displayPrintln(1, "SPI Flash Size: %d MB.", extMemGetSize() / 1048576);
-
-  displayPrintln(1, "HFXO: %d Hz", SystemHFXOClockGet());
-  displayPrintln(1, "HCLK: %d Hz", SystemHFXOClockGet() / (OC_PLLD + 1) * (OC_PLLN + 1) );
-
-
-
-  FLASH_NCS_HIGH();
-  displayPrintln(1, "");
-  displayPrintln(1, "Press ALT & FIRE & UP & DOWN");
-  displayPrintln(1, "to start PAK installation.");
-  delay(200);
-
-  FLASH_NCS_LOW();
-  SET_FLASH_MODE();
-  // Let's check if we shall go in PAK upload mode
-  initKeyboard();
-  uint16_t c;
-#define TEST_KEYS 0 // define to 1 to get displayed the key code, and quickly fill the correct defines.
-#if TEST_KEYS
-  while (1)
-#endif
-  {
-      getKeys(&c);
-
-      displayPrintln(1, "Key Pressed: %04x", c);
-      printf("Keys pressed: %x\r\n", c);
-  }
-  //
-    checkForDataFileUpdate(c);
-
-#if BOARD == BOARD_THEGAMEPAD_ARDUINONANOMATTER
-  GPIO_PinModeSet(gpioPortC, 3, gpioModePushPull, 0);
-#endif
-
-  //dumpToDisplay(0);
- //while(1);
-  //
-  SET_FLASH_MODE();
-  //
-  Z_Init();
-  //
-  float    time, oldtime, newtime;
-
-  Cvar_Init();
-#if WIN32
-  Sys_Init();
-#endif
-  memset(_g, 0, sizeof(global_data_t));
-  Host_Init(NULL);
-  oldtime = Sys_FloatTime () - 0.1f;
-  while (1)
-  {
-// find time spent rendering last frame
-      newtime = Sys_FloatTime ();
-      time = newtime - oldtime;
-      if (time > sys_ticrate*2)
-          oldtime = newtime;
-      else
-          oldtime += time;
-      Host_Frame (time);
-
-  }
-
+  sysInit();
+  game();
+  return 0;
 }
 void Sys_Error (char *error, ...)
 {

@@ -41,8 +41,11 @@ struct qsockaddr
 
 #define	NET_NAMELEN			64
 
-#define NET_MAXMESSAGE      4096
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#define NET_MAXMESSAGE      8192        //
+#else
+#define NET_MAXMESSAGE      4096        //
+#endif
 #define NET_HEADERSIZE		(2 * sizeof(unsigned int))
 #define NET_DATAGRAMSIZE	(MAX_DATAGRAM + NET_HEADERSIZE)
 

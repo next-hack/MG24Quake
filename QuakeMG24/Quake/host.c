@@ -42,7 +42,7 @@ int gem = 0;    // counter for get entity model
 #endif // WIN32
 /*
 
- A server can allways be started, even if the system started out as a client
+ A server can always be started, even if the system started out as a client
  to a remote system.
 
  A client can NOT be started if the system started as a dedicated server.
@@ -50,7 +50,9 @@ int gem = 0;    // counter for get entity model
  Memory is cleared / released when a server or client begins, not when they end.
 
  */
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 const quakeparms_t host_parms;
 
 qboolean host_initialized;		// true if into command execution
@@ -720,8 +722,9 @@ void _Host_Frame(float time)
 #endif
     if (_g->cls.netcon && _g->cls.netcon->receiveMessageLength)
         while (1)
+        {
             FIXME("RECEIVE MESSAGELENGTH NOT 0");
-
+        }
 #if HOST_ABORT_SERVER
 	if (setjmp (host_abortserver) )
 		return;			// something bad happened, or the server disconnected

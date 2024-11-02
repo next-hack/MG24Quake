@@ -44,11 +44,7 @@
 #define MAXWIDTH    320
 #define EDGES_IN_Z_BUFFER 1
 #define EDGE_POINTERS   1   // will be marginally faster.
-#if EDGES_IN_Z_BUFFER
-#define MAX_TEXTURE_SIZE   (14800 * 2) //note: in the surf buffer the medge cache offset is stored! And there are up to 14.8k medges in the shareware version
-#else
-#define MAX_TEXTURE_SIZE    (136 * 240)
-#endif
+
 #define MAXDIMENSION  ((MAXHEIGHT > MAXWIDTH) ? MAXHEIGHT : MAXWIDTH)
 
 #define SIN_BUFFER_SIZE (MAXDIMENSION+CYCLE)

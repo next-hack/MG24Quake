@@ -156,7 +156,17 @@ void D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
         _g->aliasPendingAddress = &_g->d_viewbuffer[d_scantable(fv->v[1]) + fv->v[0]];
         _g->aliasPendingPixel = 1;
 #else
+#if CACHE_SKINS_TO_FLASH
+                if (_g->originalSkinInInternalFlash)
+                {
+                    pix = *((byte*)_g->r_affinetridesc.pOriginalskin + (fv->v[2] >> 16) + (fv->v[3] >> 16) * _g->r_affinetridesc.skinwidth);
+                }
+                else
+#endif
+                {
                 pix = extMemGetByteFromAddress((byte*) _g->r_affinetridesc.pOriginalskin + (fv->v[2] >> 16) + (fv->v[3] >> 16) * _g->r_affinetridesc.skinwidth);
+                }
+
                 pix = ((byte*) _g->acolormap)[pix + (fv->v[4] & 0xFF00)];
                 _g->d_viewbuffer[d_scantable(fv->v[1]) + fv->v[0]] = pix;
 #endif
@@ -201,8 +211,8 @@ void D_DrawSubdiv(void)
         {
             continue;
         }
-//        FIXME("FIXMEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE!");
 #if !MODELS_HAVE_ORIGINAL_SKIN_TOO
+#error we need original skin!
         recursiveMtod =  (mtriangleOffsetData_t *) ((byte*) r_affinetridesc.paliashdr + (ptri[i].triangleOffsetDataPos << 2));
 
         recursiveMtod = extMemGetDataFromAddress(r_affinetridesc.tempTriangleOffsetData,
@@ -433,11 +443,22 @@ void D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
 
     #else
 #if 1
+#if CACHE_SKINS_TO_FLASH
+        if (_g->originalSkinInInternalFlash)
+        {
+            pix = *((byte*) _g->r_affinetridesc.pOriginalskin + (new[2] >> 16) + (new[3] >> 16) * _g->r_affinetridesc.skinwidth);
+        }
+        else
+#endif
+        {
         pix = extMemGetByteFromAddress((byte*) _g->r_affinetridesc.pOriginalskin + (new[2] >> 16) + (new[3] >> 16) * _g->r_affinetridesc.skinwidth);
+
+        }
         pix = _g->d_pcolormap[pix];
         _g->d_viewbuffer[d_scantable(new[1]) + new[0]] = pix;
         *zbuf = z;
 #else
+#error
     interleavedSpiFlashAsynchReadByteDMA ((byte*)r_affinetridesc.pOriginalskin +( new[2]  >> 16) +  (new[3] >> 16) * r_affinetridesc.skinwidth);
     *zbuf = z;
     pix = _g->d_pcolormap[interleavedSpiFlashGetAsynchReadByteDMA()];
@@ -446,8 +467,9 @@ void D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
 #endif
 #endif
 #else
+#error we want original skin!
         pix = extMemGetByteFromAddress (&recursive_ptex[recursiveMtod->offsets[((new[2] /*+ APPROX_X*0x8000*/) >> 16) - recursiveMtod->offsetS] + ((new[3] + APPROX_Y*0x8000) >> 16)]);
-        pix = _g->d_pcolormap[pix];//244;// d_pcolormap[0]; //d_pcolormap[skintable[new[3]>>16][new[2]>>16]];
+        pix = _g->d_pcolormap[pix];
         _g->d_viewbuffer[d_scantable(new[1]) + new[0]] = pix;
 #endif
 
@@ -468,25 +490,7 @@ void D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
  D_PolysetUpdateTables
  ================
  */
-#if NO_MINIMIZE
-void D_PolysetUpdateTables (void)
-{
 
-  if (r_affinetridesc.skinwidth != _g->skinwidth || r_affinetridesc.pskin != _g->skinstart)
-  {
-    _g->skinwidth = r_affinetridesc.skinwidth;
-    _g->skinstart = r_affinetridesc.pskin;
-  int   i;
-  byte  *s;
-  s = skinstart;
-  for (i=0 ; i<MAX_LBM_HEIGHT ; i++, s+=skinwidth)
-      skintable[i] = s;
-  }
-  _g->skinwidth = r_affinetridesc.skinwidth;
-  _g->skinstart = r_affinetridesc.pskin;
-
-}
-#endif
 
 #if !id386
 
@@ -748,7 +752,7 @@ int        aliasPixLoeaded = 0 ;
         if ((lzi >> 16) >= *lpz) \
         { \
               flushAliasPendingPixel(); /* flush the pixel, if any*/\
-              interleavedSpiFlashAsynchReadByteDMA( (uint32_t)_g->r_affinetridesc.pOriginalskin  + (ls >> 16) + (lt >> 16) * _g->r_affinetridesc.skinwidth); \
+              extMemAsynchReadByteFromAddress( (uint32_t)_g->r_affinetridesc.pOriginalskin  + (ls >> 16) + (lt >> 16) * _g->r_affinetridesc.skinwidth); \
               _g->aliasPendingLight = (llight & 0xFF00); \
               _g->aliasPendingAddress = lpdest; \
               _g->aliasPendingPixel = 1; \
@@ -909,6 +913,46 @@ static inline void addAliasAsynchPixel(uint16_t llight, uint8_t *lpdest, int lls
         llight += _g->r_lstepx; \
         ls += _g->a_sstepx; lt += _g->a_tstepx;
 
+static inline __attribute__ ((always_inline)) void drawPolysetSpanFromInternalMemory(spanpackage_t *pspanpackage, short lcount)
+{
+    byte *lpdest;
+
+    short *lpz;
+    int ls, lt;
+    lpdest = pspanpackage->pdest;
+    lpz = pspanpackage->pz;
+
+    lt = pspanpackage->t;
+
+    int lzi = pspanpackage->zi;
+    int llight = pspanpackage->light;
+
+    ls = pspanpackage->s;
+
+    int zistepx = _g->r_zistepx;
+    int a_sstepx = _g->a_sstepx;
+    int a_tstepx = _g->a_tstepx;
+   int lstepx = _g->r_lstepx;
+   byte *lptex = (byte*) _g->r_affinetridesc.pOriginalskin;
+   int width = _g->r_affinetridesc.skinwidth;
+   byte * colormap = (byte *)_g->acolormap;
+   while (lcount--)
+   {
+     if ((lzi >> 16) >= *lpz)
+     {
+         *lpz = lzi >> 16;
+         int pix =  lptex[(ls  >> 16) + (lt  >> 16) * width];
+         *lpdest = colormap[pix + (llight & 0xFF00)];
+     }
+     lpdest++;
+     lzi += zistepx;
+     llight += lstepx;
+
+     lpz++;
+     ls += a_sstepx;
+     lt += a_tstepx;
+   }
+}
 void drawPolysetSpan(spanpackage_t *pspanpackage, short lcount)
 {
     byte *lpdest;
@@ -928,7 +972,17 @@ void drawPolysetSpan(spanpackage_t *pspanpackage, short lcount)
 #if MTRIANGLE_HAS_OFFSET_DATA
    ls = pspanpackage->s - (r_affinetridesc.ptriangles[_g->d_trinum].offsetS << 16);
 #else
+#if CACHE_SKINS_TO_FLASH
+
+if (_g->originalSkinInInternalFlash)
+{
+    ls = pspanpackage->s;
+}
+else
+#endif
+{
     ls = pspanpackage->s - (td->offsetS << 16) + APPROX_X * 0x8000; // note this was explicit after shift.
+}
 #endif
 
     uint16_t *offsets = td->offsets;
@@ -936,7 +990,32 @@ void drawPolysetSpan(spanpackage_t *pspanpackage, short lcount)
     int zistepx = _g->r_zistepx;
     int a_sstepx = _g->a_sstepx;
     int a_tstepx = _g->a_tstepx;
+#if CACHE_SKINS_TO_FLASH
+    if (_g->originalSkinInInternalFlash)
+    {
+       int lstepx = _g->r_lstepx;
+       byte *lptex = (byte*) _g->r_affinetridesc.pOriginalskin;
+       int width = _g->r_affinetridesc.skinwidth;
+       byte * colormap = (byte *)_g->acolormap;
+       while (lcount--)
+       {
+         if ((lzi >> 16) >= *lpz)
+         {
+             *lpz = lzi >> 16;
+             int pix =  lptex[(ls  >> 16) + (lt  >> 16) * width];
+             *lpdest = colormap[pix + (llight & 0xFF00)];
+         }
+         lpdest++;
+         lzi += zistepx;
+         llight += lstepx;
 
+         lpz++;
+         ls += a_sstepx;
+         lt += a_tstepx;
+       }
+       return;
+    }
+#endif
 #if WIN32
    byte *lptex = _g->d_ptex;
    while(lcount--)
@@ -1037,8 +1116,6 @@ void drawPolysetSpan(spanpackage_t *pspanpackage, short lcount)
 
         : "cc", "r0", "r1"
     );
-
-    // tmp, tmp2, lzi, lzp, offsets, lptex, llight, colormap, lpdest, zistepx, ls, lt, a_sstepx, a_tstepx, lcount
 #endif
 #endif
 }
@@ -1046,12 +1123,44 @@ __attribute__ ((always_inline)) static inline void D_PolysetDrawSpans8(spanpacka
 {
     int lcount;
     byte *lpdest;
-    // byte  *lptex;
     int llight;
     int lzi;
     short *lpz;
     int ls;
     int lt;
+
+    #if CACHE_SKINS_TO_FLASH
+    if (_g->originalSkinInInternalFlash)
+    {
+        _g->d_ptex = (byte*) _g->r_affinetridesc.pOriginalskin;
+        do
+        {
+            lcount = _g->d_aspancount - pspanpackage->count;
+            _g->errorterm += _g->erroradjustup;
+            if (_g->errorterm >= 0)
+            {
+                _g->d_aspancount += _g->d_countextrastep;
+                _g->errorterm -= _g->erroradjustdown;
+            }
+            else
+            {
+                _g->d_aspancount += _g->ubasestep;
+            }
+            if (lcount)
+            {
+                drawPolysetSpanFromInternalMemory(pspanpackage, lcount);
+
+            }
+
+            pspanpackage++;
+        }
+        while (pspanpackage->count != -999999);
+        return;
+    }
+
+    #endif
+
+
     // is it better loading all or singularly ?
 #define TIME_PER_ACCESS   12 // 12 ?11 better //30 // 65 is measured but does not yield best results.
 #define TIME_PER_BYTE 1
@@ -1156,35 +1265,13 @@ __attribute__ ((always_inline)) static inline void D_PolysetDrawSpans8(spanpacka
 #endif
                 }
 
-//         mtriangleOffsetData_t *td = _g->d_mtod;
 #else
          mtriangleOffsetData_t *td =  pspanpackage->mtod;
 
    #endif
-#if OLD_POLYSE_DRAW_CODE
-         mtriangleOffsetData_t *td = _g->d_mtod;
 
-         lpdest = pspanpackage->pdest;
-         lptex = _g->d_ptex;
-         lpz = pspanpackage->pz;
-
-#if MTRIANGLE_HAS_OFFSET_DATA
-         ls = pspanpackage->s - (r_affinetridesc.ptriangles[_g->d_trinum].offsetS << 16);
-#else
-         ls = pspanpackage->s - (td->offsetS << 16); // note this was explicit after shift.
-#endif
-         lt = pspanpackage->t;
-
-         llight = pspanpackage->light;
-         lzi = pspanpackage->zi;
-         uint16_t *offsets = td->offsets;
-         while(lcount--)
-         {
-           drawPolysetPixel();
-         }
-#else
                 drawPolysetSpan(pspanpackage, lcount);
-#endif
+
             }
 
             pspanpackage++;
@@ -1307,7 +1394,9 @@ void D_PolysetFillSpans8(spanpackage_t *pspanpackage)
  */
 // BIG NOTE FOR MYSELF!!! IN R_AliasClipTriangle (r_alias.c) a local triangle is generated and, this function will be called
 // from that (not directly, but through D_PolysetDraw()->D_DrawNonSubdiv()).
+#if WIN32
 int pixAlias = 0;
+#endif
 #if NO_MINIMIZE
 void D_RasterizeAliasPolySmooth (void)
 #else
@@ -1344,54 +1433,47 @@ void D_RasterizeAliasPolySmooth(int trinum)
 
     _g->ystart = plefttop[1];
     _g->d_aspancount = plefttop[0] - prighttop[0];
+
 #if NO_MINIMIZE
   d_ptex = (byte *)r_affinetridesc.pskin + (plefttop[2] >> 16) +
       (plefttop[3] >> 16) * r_affinetridesc.skinwidth;
 #else
-    mtriangleOffsetData_t *mtod; //=  (mtriangleOffsetData_t *) ((byte*) r_affinetridesc.paliashdr + (r_affinetridesc.ptriangles[trinum].triangleOffsetDataPos << 2));
-#if ALWAYS_LOAD_MTOD
-   mtod = extMemGetDataFromAddress(r_affinetridesc.tempTriangleOffsetData,
-                                   (byte*) r_affinetridesc.paliashdr->extMemAddress +
-                                   (r_affinetridesc.ptriangles[trinum].triangleOffsetDataPos << 2),
-                                   (sizeof(*mtod) + sizeof(uint16_t) * r_affinetridesc.ptriangles[trinum].triangleOffsetNumber + 3) & ~3 );
-#else
-    mtod =
-        (mtriangleOffsetData_t*) ((byte*) _g->r_affinetridesc.paliashdr->extMemAddress + (_g->r_affinetridesc.ptriangles[trinum].triangleOffsetDataPos << 2));
+    mtriangleOffsetData_t *mtod = NULL; //=  (mtriangleOffsetData_t *) ((byte*) r_affinetridesc.paliashdr + (r_affinetridesc.ptriangles[trinum].triangleOffsetDataPos << 2));
+#if CACHEABLE_SKIN && CACHE_SKINS_TO_FLASH
+    if (!_g->originalSkinInInternalFlash)
 #endif
-    _g->r_affinetridesc.triangleSize = _g->r_affinetridesc.ptriangles[trinum].triangleSize;
-    _g->d_mtod = mtod;
-    _g->d_trinum = trinum;
-#if WIN32
-    if (!mtod)
     {
-        printf("NULL MTOD!!!!");
-        system("pause");
+    #if ALWAYS_LOAD_MTOD
+       mtod = extMemGetDataFromAddress(r_affinetridesc.tempTriangleOffsetData,
+                                       (byte*) r_affinetridesc.paliashdr->extMemAddress +
+                                       (r_affinetridesc.ptriangles[trinum].triangleOffsetDataPos << 2),
+                                       (sizeof(*mtod) + sizeof(uint16_t) * r_affinetridesc.ptriangles[trinum].triangleOffsetNumber + 3) & ~3 );
+    #else
+        mtod =
+            (mtriangleOffsetData_t*) ((byte*) _g->r_affinetridesc.paliashdr->extMemAddress + (_g->r_affinetridesc.ptriangles[trinum].triangleOffsetDataPos << 2));
+    #endif
+        _g->r_affinetridesc.triangleSize = _g->r_affinetridesc.ptriangles[trinum].triangleSize;
+        _g->d_mtod = mtod;
+        _g->d_trinum = trinum;
+    #if WIN32
+        if (!mtod)
+        {
+            printf("NULL MTOD!!!!");
+            system("pause");
+        }
+    #endif
+    //    _g->d_pedgespanpackage->mtod = mtod;
+        _g->r_affinetridesc.tempTrianglePixBuffer = (byte*) ((uint32_t) ((byte*) _g->r_affinetridesc.tempTriangleOffsetData + sizeof(*mtod)
+            + sizeof(uint16_t) * _g->r_affinetridesc.ptriangles[trinum].triangleOffsetNumber + 3) & ~3);
+        _g->d_ptex = NULL;
+    #if WIN32
+        pixAlias += _g->r_affinetridesc.triangleSize;
+    #endif
     }
 #endif
-//    _g->d_pedgespanpackage->mtod = mtod;
-#if LETS_TEST_SKINS
-    d_ptex = (byte *)r_affinetridesc.pskin;
-#else
 
-#if 1
-#if MTRIANGLE_HAS_OFFSET_DATA
-    r_affinetridesc.tempTrianglePixBuffer = (byte*) ((uint32_t) ((byte*) r_affinetridesc.tempTriangleOffsetData +  (sizeof(uint16_t) * r_affinetridesc.ptriangles[trinum].triangleOffsetNumber) + 3) &~3);
-#else
-    _g->r_affinetridesc.tempTrianglePixBuffer = (byte*) ((uint32_t) ((byte*) _g->r_affinetridesc.tempTriangleOffsetData + sizeof(*mtod)
-        + sizeof(uint16_t) * _g->r_affinetridesc.ptriangles[trinum].triangleOffsetNumber + 3) & ~3);
-#endif
-#if ALWAYS_LOAD_MTOD
-    d_ptex = (byte *) extMemGetDataFromAddress(r_affinetridesc.tempTrianglePixBuffer, (byte *)r_affinetridesc.pskin  + mtod->startOffset,
-                                               (r_affinetridesc.triangleSize + 3) & ~3) - mtod->bufferOffset - mtod->startOffset;
-#else
-    _g->d_ptex = NULL;
-#endif
-    pixAlias += _g->r_affinetridesc.triangleSize;
-    //   d_ptex = (byte *)r_affinetridesc.pskin - mtod->bufferOffset;
-#endif
-//    d_ptex = (byte *)r_affinetridesc.pskin - mtod->bufferOffset;
-#endif
-#endif
+
+
 #if id386
   d_sfrac = (plefttop[2] & 0xFFFF) << 16;
   d_tfrac = (plefttop[3] & 0xFFFF) << 16;

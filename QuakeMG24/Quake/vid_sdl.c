@@ -33,7 +33,7 @@
 #include "d_local.h"
 byte displayBuffer[320 * 200];
 
-viddef_t    vid;                // global video state
+extern viddef_t    vid;                // global video state
 
 // The original defaults
 #define    BASEWIDTH    320
@@ -51,9 +51,10 @@ static float   mouse_x, mouse_y;
 static int mouse_oldbuttonstate = 0;
 
 // No support for option menus
+#if 0
 void (*vid_menudrawfn)(void) = NULL;
 void (*vid_menukeyfn)(int key) = NULL;
-
+#endif
 void VID_SetPalette (unsigned char *palette)
 {
     int i;
@@ -88,18 +89,12 @@ void    VID_Init (unsigned char *palette)
         Sys_Error("VID: Couldn't load SDL: %s", SDL_GetError());
 
     // Set up display mode (width and height)
-    vid.width = BASEWIDTH;
-    vid.height = BASEHEIGHT;
 //    vid.maxwarpwidth = WARP_WIDTH;
 //    vid.maxwarpheight = WARP_HEIGHT;
     if ((pnum=COM_CheckParm("-winsize")))
     {
         if (pnum >= com_argc-2)
             Sys_Error("VID: -winsize <width> <height>\n");
-        vid.width = Q_atoi(com_argv[pnum+1]);
-        vid.height = Q_atoi(com_argv[pnum+2]);
-        if (!vid.width || !vid.height)
-            Sys_Error("VID: Bad window width/height\n");
     }
 
     // Set video width, height and flags
@@ -107,32 +102,31 @@ void    VID_Init (unsigned char *palette)
 
 
     // Initialize display
-//    if (!(screen = SDL_SetVideoMode(vid.width, vid.height, 8, flags)))
-    window =   SDL_CreateWindow( "SDL Tutorial", 10, 10, vid.width, vid.height, SDL_WINDOW_SHOWN );
+//    if (!(screen = SDL_SetVideoMode(VID_WIDTH, VID_HEIGHT, 8, flags)))
+    window =   SDL_CreateWindow( "SDL Tutorial", 10, 10, VID_WIDTH, VID_HEIGHT, SDL_WINDOW_SHOWN );
     screen = SDL_GetWindowSurface(window);
-    workSurface = SDL_CreateRGBSurface(0, vid.width, vid.height,8, 0, 0, 0, 0);
+    workSurface = SDL_CreateRGBSurface(0, VID_WIDTH, VID_HEIGHT,8, 0, 0, 0, 0);
     if (!screen)
         Sys_Error("VID: Couldn't set video mode: %s\n", SDL_GetError());
     VID_SetPalette(palette);
     //SDL_WM_SetCaption("sdlquake","sdlquake");
     // now know everything we need to know about the buffer
-    VGA_width = vid.conwidth = vid.width;
-    VGA_height = vid.conheight = vid.height;
-    vid.aspect = ((float)vid.height / (float)vid.width) * (320.0 / 240.0);
-    vid.numpages = 1;
+    VGA_width = VID_WIDTH;
+    VGA_height = VID_HEIGHT;
+    vid.aspect = ((float)VID_HEIGHT / (float)VID_WIDTH) * (320.0 / 240.0);
+//    vid.numpages = 1;
     vid.colormap = host_colormap;
     vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
     vid.buffer = displayBuffer;
     VGA_pagebase = workSurface->pixels;
-    VGA_rowbytes = vid.rowbytes = workSurface->pitch;
+    VGA_rowbytes = workSurface->pitch;
     vid.conbuffer = vid.buffer;
-    vid.conrowbytes = vid.rowbytes;
 //    vid.direct = 0;
 #if DYNAMIC_3D_VIEWPORT_SIZE
     // allocate z buffer and surface cache
-    chunk = vid.width * vid.height * sizeof (*d_zbuffer);
+    chunk = VID_WIDTH * VID_HEIGHT * sizeof (*d_zbuffer);
 #if SURF_CACHE
-    cachesize = D_SurfaceCacheForRes (vid.width, vid.height);
+    cachesize = D_SurfaceCacheForRes (VID_WIDTH, VID_HEIGHT);
     chunk += cachesize;
 #endif
     printf("Chunk size for graphics: %d\r\n", chunk);
@@ -141,7 +135,7 @@ void    VID_Init (unsigned char *palette)
         Sys_Error ("Not enough memory for video mode\n");
     // initialize the cache memory
         cache = (byte *) d_pzbuffer
-                + vid.width * vid.height * sizeof (*d_pzbuffer);
+                + VID_WIDTH * VID_HEIGHT * sizeof (*d_pzbuffer);
     printf("Size of *d_pzbuffer %d and byte %d\r\n", sizeof (*d_pzbuffer), sizeof(byte), sizeof(pixel_t));
 #if SURF_CACHE
     D_InitCaches (cache, cachesize);
@@ -321,16 +315,16 @@ void Sys_SendKeyEvents(void)
                 break;
 
             case SDL_MOUSEMOTION:
-                if ( (event.motion.x != (vid.width/2)) ||
-                     (event.motion.y != (vid.height/2)) ) {
+                if ( (event.motion.x != (VID_WIDTH/2)) ||
+                     (event.motion.y != (VID_HEIGHT/2)) ) {
                     mouse_x = event.motion.xrel*10;
                     mouse_y = event.motion.yrel*10;
-                    if ( (event.motion.x < ((vid.width/2)-(vid.width/4))) ||
-                         (event.motion.x > ((vid.width/2)+(vid.width/4))) ||
-                         (event.motion.y < ((vid.height/2)-(vid.height/4))) ||
-                         (event.motion.y > ((vid.height/2)+(vid.height/4))) ) {
-                        //SDL_WarpMouse(vid.width/2, vid.height/2);
-             //           SDL_WarpMouseGlobal(vid.width/2, vid.height/2);
+                    if ( (event.motion.x < ((VID_WIDTH/2)-(VID_WIDTH/4))) ||
+                         (event.motion.x > ((VID_WIDTH/2)+(VID_WIDTH/4))) ||
+                         (event.motion.y < ((VID_HEIGHT/2)-(VID_HEIGHT/4))) ||
+                         (event.motion.y > ((VID_HEIGHT/2)+(VID_HEIGHT/4))) ) {
+                        //SDL_WarpMouse(VID_WIDTH/2, VID_HEIGHT/2);
+             //           SDL_WarpMouseGlobal(VID_WIDTH/2, VID_HEIGHT/2);
                     }
                 }
                 break;
@@ -428,6 +422,9 @@ char *Sys_ConsoleInput (void)
 #else
 
 #include "quakedef.h"
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #include "d_local.h"
 #include "keyboard.h"
 char* Sys_ConsoleInput(void)
@@ -497,17 +494,15 @@ void VID_Init(unsigned char *palette)
 {
     (void) palette;
     // Set up display mode (width and height)
-    vid.width = SCREEN_WIDTH;
-    vid.height = SCREEN_HEIGHT;
     vid.aspect = ((float) SCREEN_HEIGHT / (float) SCREEN_WIDTH) * (320.0 / 240.0);
-    vid.numpages = 1;
+//    vid.numpages = 1;
     vid.colormap = host_colormap;
     int fb;
     extMemGetDataFromAddress(&fb, (int*) vid.colormap + 2048, sizeof(fb));
     vid.fullbright = 256 - fb;
     vid.buffer = (void*) displayData.displayFrameBuffer;
     vid.conbuffer = vid.buffer;
-    vid.conrowbytes = vid.rowbytes = 320;
+    //vid.conrowbytes = 320;
     //     vid.direct = 0;
 }
 

@@ -123,7 +123,9 @@ particle_t* getFreeParticle(void)
 void freeParticle(particle_t *p)
 {
     if (usedParticles == 0)
+    {
         FIXME("Freed too many particles!");
+    }
     usedParticles--;
     p->inUse = 0;
 }

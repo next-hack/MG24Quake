@@ -38,7 +38,9 @@ AUX_SECTION char key_lines[MAX_HISTORY_LINES][MAXCMDLINE];
 int8_t key_linepos;
 int8_t shift_down = false;
 uint8_t key_lastpress;
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 int edit_line = 0;
 #if HISTORY
 int		history_line=0;
@@ -347,8 +349,8 @@ void Key_Console(int key)
     if (key == K_PGUP || key == K_MWHEELUP)
     {
         con_backscroll += 2;
-        if (con_backscroll > con_totallines - (vid.height >> 3) - 1)
-            con_backscroll = con_totallines - (vid.height >> 3) - 1;
+        if (con_backscroll > con_totallines - (VID_HEIGHT >> 3) - 1)
+            con_backscroll = con_totallines - (VID_HEIGHT >> 3) - 1;
         return;
     }
 
@@ -362,7 +364,7 @@ void Key_Console(int key)
 
     if (key == K_HOME)
     {
-        con_backscroll = con_totallines - (vid.height >> 3) - 1;
+        con_backscroll = con_totallines - (VID_HEIGHT >> 3) - 1;
         return;
     }
 

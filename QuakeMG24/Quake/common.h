@@ -224,7 +224,7 @@ byte* COM_LoadHunkFile(char *path);
 void COM_LoadCacheFile(char *path, struct cache_user_s *cu);
 int getDPackFile(dpackfile_t *packFile, int num);
 byte* COM_LoadFileFromExtMem(char *filename, unsigned int *fileSize);
-
+void COM_ResetDynamicMemory(void);   // initializes the Z_zone memory and resets pointers to NULL or default
 #if USE_ORIGINAL_CVAR
 extern	struct cvar_s	registered;
 #endif

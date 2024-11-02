@@ -883,8 +883,10 @@ typedef struct
 	int					skin : 31;  // this is an offset into mem
 #if MODELS_HAVE_ORIGINAL_SKIN_TOO
     int                 originalSkin;
+    #if CACHEABLE_SKIN
+        uint32_t              pCachedSkin;
+    #endif
 #endif
-	//void				*pcachespot;
 	#endif
 
 } maliasskindesc_t;

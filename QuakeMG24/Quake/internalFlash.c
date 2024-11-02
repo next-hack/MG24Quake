@@ -30,32 +30,29 @@
 #if !WIN32
 #include "memory_defs.h"
 #endif
+#if RETAIL_QUAKE_PAK_SUPPORT
+    #pragma GCC optimize("Os") //
+#endif
 // Note: subject to change
 #define DEBUG_INTERNAL_FLASH        0
 #if DEBUG_INTERNAL_FLASH
-#define internalFlashDbgPrintf printf
+    #define internalFlashDbgPrintf printf
 #else
-#define internalFlashDbgPrintf(...)
+    #define internalFlashDbgPrintf(...)
 #endif
-#define PAGE_SIZE 8192
-#define LET_ME_JUST_WORK       1
-#if WIN32
-  #define APP_SIZE    (((1024 * 624) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
-#else
-#define APP_SIZE    (((FLASH_CODE_SIZE & (0xFFFFFF))  + PAGE_SIZE - 1)  & ~(PAGE_SIZE - 1))
-#endif
+#define LET_ME_JUST_WORK       1        // used in Windows to check how much flash we need.
 #define CHECK_ALIGN(size)     if ((uint32_t)size & 3)  Sys_Error("Error, storing non word-aligned object (%d) at line %d", size, __LINE__);
 #if WIN32
-#if LET_ME_JUST_WORK
+    #if LET_ME_JUST_WORK
   #define FLASH_SIZE (15360 * 1024)
-#else
+    #else
   #define FLASH_SIZE (1536 * 1024)
-#endif // LET_ME_JUST_WORK
+    #endif // LET_ME_JUST_WORK
 
   uint8_t  internalFlash[FLASH_SIZE];
   static uint32_t pointer = APP_SIZE;
 #else
-static uint32_t pointer = 0;
+    static uint32_t pointer = 0;
 #endif // WIN32_T
 static int commonSize = 0;
 // called after common stuff has been initialized
@@ -68,46 +65,42 @@ void internalFlashInit(void)
     pointer = APP_SIZE;
     commonSize = 0;
 }
+int getInternalFlashRemaningSize(void)
+{
+    #if WIN32
+    return 1024*1536 - pointer;
+    #else
+        return FLASH_SIZE - pointer;
+
+    #endif
+}
 #if WIN32
 void eraseInternalFlash(int sections)
 {
-#if WIN32
-    FIXME("Erasing flash\r\n");
-#endif
+    // do nothing
 }
 void *getCurrentInternalFlashPtr(void)
 {
-    #if WIN32
         return &internalFlash[pointer];
-    #endif // WIN32
 }
 void *reserveInternalFlashSize(int size)
 {
     CHECK_ALIGN(size);
     int oldPointer = pointer;
-    #if WIN32
         pointer += size;
         return &internalFlash[oldPointer];
-    #endif // WIN32
 }
-#if WIN32
 void * storeToInternalFlash2(void *buffer, int size, char *function, int line)
-#else
-void * storeToInternalFlash(void *buffer, int size)
-#endif
 {
     // TODO: distinguish if buffer is on external flash.
     // TODO: if page is dirty, save and erase
     if (size & 3)
     {
-        #if WIN32
             printf("Caching to flash. Current %d, requested %d, remaining %d (real: %d), Line %d, function %s\r\n", pointer, size, FLASH_SIZE - size - pointer, 1536 * 1024 - size - pointer, line, function);
-        #endif
         FIXME("UNALIGNED STORE TO INTERNAL FLASH!");
 
     }
     CHECK_ALIGN(size);
-#if WIN32
     printf("Caching to flash. Current %d, requested %d, remaining %d (real: %d), Line %d, function %s\r\n", pointer, size, FLASH_SIZE - size - pointer, 1536 * 1024 - size - pointer, line, function);
     if (size + pointer > FLASH_SIZE)
     {
@@ -123,7 +116,6 @@ void * storeToInternalFlash(void *buffer, int size)
     uint8_t *ptr = &internalFlash[pointer];
     pointer += size;
     return ptr;
-#endif
 }
 void * storeToInternalFlashAtPointer(void *buffer, void *flashPos, int size)
 {
@@ -131,11 +123,9 @@ void * storeToInternalFlashAtPointer(void *buffer, void *flashPos, int size)
     CHECK_ALIGN(size);
     // TODO: distinguish if buffer is on external flash.
     // TODO: if page is dirty, save and erase
-#if WIN32
     printf("Storing %d bytes to position fixed flash %p. Better to be reserverd!\r\n", size, flashPos);
     memcpy(flashPos, buffer, size);
     return flashPos;
-#endif
 }
 
 #else
@@ -293,7 +283,9 @@ void* storeToInternalFlash(const void *buffer, int size)
     // TODO: distinguish if buffer is on external flash.
     // TODO: if page is dirty, save and erase
     if (size & 3)
+    {
         FIXME("UNALIGNED...");
+    }
     CHECK_ALIGN(size);
 //    internalFlashDbgPrintf("Caching to flash. Current %d, requested %d, remaining %d (real: %d)\r\n", pointer, size, FLASH_SIZE - size - pointer, 1536 * 1024 - size - pointer);
     printf("FC. Add: %xh, rq: %xh, lf: %xh\r\n", (unsigned int) pointer, (unsigned int) size, (unsigned int) (FLASH_SIZE - size - pointer));

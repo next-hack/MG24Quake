@@ -38,14 +38,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_MAP_ENTSTRING	65536
 
 #define	MAX_MAP_PLANES		32767
-#define	MAX_MAP_NODES		4096//32767  // next-hack: because negative values are leafs
+#define	MAX_MAP_NODES		4096//32767  // next-hack: was 32767 because negative values are leafs. Anyway, 3622+1 is enough for commercial
 #define	MAX_MAP_CLIPNODES	32767		 //
-#define	MAX_MAP_LEAFS		3072 //8192  // next-hack: 3072 is fine for shareware maps
+#define	MAX_MAP_LEAFS		3072 //8192  // next-hack: 3072 is fine for shareware maps. Actually for share and full is 2156 + 1.
 #define	MAX_MAP_VERTS		65535
 #define	MAX_MAP_FACES		65535
 #define	MAX_MAP_MARKSURFACES 65535
 #define	MAX_MAP_TEXINFO		4096
-#define	MAX_MAP_EDGES		(SURFACE_SIZE / 2)
+#if RETAIL_QUAKE_PAK_SUPPORT
+    #define	MAX_MAP_EDGES		17024 //(MAX_TEXTURE_SIZE / 2) shareware map can live with 14800.
+#else
+    #define	MAX_MAP_EDGES		(MAX_TEXTURE_SIZE / 2) // shareware map can live with 14800.
+#endif
 #define	MAX_MAP_SURFEDGES	512000
 #define	MAX_MAP_TEXTURES	512
 #define	MAX_MAP_MIPTEX		0x200000

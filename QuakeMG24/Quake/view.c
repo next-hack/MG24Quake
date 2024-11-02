@@ -28,7 +28,11 @@
  */
 // view.c -- player eye positioning
 #include "quakedef.h"
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #include "r_local.h"
+
 /*
 
  The view is allowed to move slightly from it's true position for bobbing,
@@ -1159,45 +1163,7 @@ void V_RenderView(void)
     _g->d_pzbuffer = d_zbuffer;
     R_PushDlights();
 
-#if 0
-	if (lcd_x)
-	{
-		//
-		// render two interleaved views
-		//
-		int		i;
-
-		vid.rowbytes <<= 1;
-		vid.aspect *= 0.5;
-
-		_g->r_refdef.viewangles[YAW] -= lcd_yaw;
-		for (i=0 ; i<3 ; i++)
-			_g->r_refdef.vieworg[i] -= right[i]*lcd_x;
-		R_RenderView ();
-
-		vid.buffer += vid.rowbytes>>1;
-
-		R_PushDlights ();
-
-		_g->r_refdef.viewangles[YAW] += lcd_yaw*2;
-		for (i=0 ; i<3 ; i++)
-			_g->r_refdef.vieworg[i] += 2*right[i]*lcd_x;
-		R_RenderView ();
-
-		vid.buffer -= vid.rowbytes>>1;
-
-		_g->r_refdef.vrect.height <<= 1;
-
-		vid.rowbytes >>= 1;
-		vid.aspect *= 2;
-	}
-	else
-	{
-		R_RenderView ();
-	}
-#else
     R_RenderView();
-#endif
 
 #ifndef GLQUAKE
     if (crosshair)

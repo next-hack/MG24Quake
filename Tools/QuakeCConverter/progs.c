@@ -9407,16 +9407,16 @@ void qcc_func_wall(void)
     qcc_setmodel(progs.qcc_self, get_qcc_model(PROG_TO_EDICT(progs.qcc_self)));
 /*QUAKED func_illusionary (0 .5 .8) ?
 A simple entity that looks solid but lets you walk through it.
-*//* next-hak removed: this is not even used.
-void() func_illusionary =
-
+*/}
+void qcc_func_illusionary(void)
 {
-	self.angles = '0 0 0';
-	self.movetype = MOVETYPE_NONE;
-	self.solid = SOLID_NOT;
-	setmodel (self, self.model);
-	makestatic ();
-}; *//*QUAKED func_episodegate (0 .5 .8) ? E1 E2 E3 E4
+    set_qcc_angles(PROG_TO_EDICT(progs.qcc_self), (vector)  {{0.000000f, 0.000000f, 0.000000f}});
+    set_qcc_movetype(PROG_TO_EDICT(progs.qcc_self), qcc_MOVETYPE_NONE);
+    set_qcc_solid(PROG_TO_EDICT(progs.qcc_self), qcc_SOLID_NOT);
+    qcc_setmodel(progs.qcc_self, get_qcc_model(PROG_TO_EDICT(progs.qcc_self)));
+    qcc_makestatic(progs.qcc_self)// next-hack: had to provide id.
+;
+/*QUAKED func_episodegate (0 .5 .8) ? E1 E2 E3 E4
 This bmodel will appear if the episode has allready been completed, so players can't reenter it.
 */}
 void qcc_func_episodegate(void)

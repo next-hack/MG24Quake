@@ -281,7 +281,7 @@ void() monster_oldone =
 	setmodel (self, "progs/oldone.mdl");
 	setsize (self, '-160 -128 -24', '160 128 256');
 
-	self.health = 40000;		// kill by telefrag
+	self.health = 30000;		// kill by telefrag. next-hack modified from 40000 to 30000 as health is only 16 bit signed. Telefrag removes 50000 which is still within 16 bit boundaries.
 	self.think = old_idle1;
 	self.nextthink = time + 0.1;	
 	self.takedamage = DAMAGE_YES;

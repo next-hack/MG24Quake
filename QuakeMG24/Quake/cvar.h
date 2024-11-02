@@ -108,8 +108,11 @@ CVARDECLEXT(v_centerspeed, "500", false, false, CV_SHORT);
 CVARDECLEXTDIFF(v_gamma, "gamma", "1", true, false, CV_FLOAT);
 
 CVARDECLEXT(con_notifytime, "3", false, false, CV_BYTE);		//seconds
-
+#if HAS_MULTIPLAYER
 CVARDECLEXT(cl_name, "player", true, false, CV_STRING);
+#else
+#define cl_name "player"
+#endif
 CVARDECLEXT(cl_color, "0", true, false, CV_BYTE);
 
 CVARDECLEXT(showfps, "0", false, false, CV_BYTE);
@@ -152,8 +155,11 @@ CVARDECLEXT(serverprofile, "0", false, false, CV_BYTE);
 
 CVARDECLEXT(fraglimit, "0", false, true, CV_BYTE);
 CVARDECLEXT(timelimit, "0", false, true, CV_BYTE);
+#if HAS_MULTIPLAYER
 CVARDECLEXT(teamplay, "0", false, true, CV_BYTE);
-
+#else
+#define teamplay      0
+#endif
 CVARDECLEXT(samelevel, "0", false, false, CV_BYTE);
 CVARDECLEXT(noexit, "0", false, true, CV_BYTE);
 
@@ -164,9 +170,13 @@ CVARDECLEXT(developer, "0", false, false, CV_BYTE);
 #endif
 
 CVARDECLEXT(skill, "1", false, false, CV_BYTE);						// 0 - 3
+#if HAS_MULTIPLAYER
 CVARDECLEXT(deathmatch, "0", false, false, CV_BYTE);			// 0, 1, or 2
 CVARDECLEXT(coop, "0", false, false, CV_BYTE);			// 0 or 1
-
+#else
+#define coop                0
+#define deathmatch          0
+#endif
 CVARDECLEXT(pausable, "1", false, false, CV_BYTE);
 
 CVARDECLEXT(temp1, "0", false, false, CV_BYTE);
@@ -213,15 +223,18 @@ CVARDECLEXT(viewsize, "100", true, false, CV_BYTE);
 CVARDECLEXT(fov, "90", false, false, CV_BYTE);	// 10 - 170
 CVARDECLEXT(scr_conspeed, "300", false, false, CV_SHORT);
 CVARDECLEXT(scr_centertime, "2", false, false, CV_BYTE);
-CVARDECLEXT(showram, "1", false, false, CV_BYTE);
-CVARDECLEXT(showturtle, "0", false, false, CV_BYTE);
+//CVARDECLEXT(showram, "1", false, false, CV_BYTE);
+//CVARDECLEXT(showturtle, "0", false, false, CV_BYTE);
+#define showram             0
+#define showturtle          0
 CVARDECLEXT(showpause, "1", false, false, CV_BYTE);
 CVARDECLEXT(scr_printspeed, "8", false, false, CV_BYTE);
 CVARDECLEXT(bgmvolume, "1", true, false, CV_FLOAT);
 CVARDECLEXT(volume, "0.7", true, false, CV_FLOAT);
 
 CVARDECLEXT(nosound, "0", false, false, CV_BYTE);
-CVARDECLEXT(precache, "1", false, false, CV_BYTE);
+//CVARDECLEXT(precache, "1", false, false, CV_BYTE);
+#define precache            1
 CVARDECLEXT(loadas8bit, "0", false, false, CV_BYTE);
 CVARDECLEXT(bgmbuffer, "4096", false, false, CV_SHORT);
 CVARDECLEXT(ambient_level, "0.3", false, false, CV_FLOAT);

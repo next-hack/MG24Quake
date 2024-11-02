@@ -27,7 +27,7 @@
 void *__wrap_malloc(size_t size)
 {
 #if WRAP_ENABLE
-    return Z_Malloc2(size, PU_STATIC, 0, "mallocWrapper", false);
+    return Z_Malloc2(size, PU_WRAP, 0, "mallocWrapper", false);
 #else
     return __real_malloc(size);
 #endif
@@ -43,7 +43,7 @@ void __wrap_free(void *ptr)
 void *__wrap_calloc(size_t nitems, size_t size)
 {
 #if WRAP_ENABLE
-  return Z_Calloc(nitems, size, PU_STATIC, NULL);
+  return Z_Calloc(nitems, size, PU_WRAP, NULL);
 #else
   return __real_calloc(nitems, size);
 #endif
@@ -51,7 +51,7 @@ void *__wrap_calloc(size_t nitems, size_t size)
 void *__wrap_realloc(void *ptr, size_t size)
 {
 #if WRAP_ENABLE
-  return Z_Realloc(ptr, size, PU_STATIC, NULL);
+  return Z_Realloc(ptr, size, PU_WRAP, NULL);
 #else
   return __real_realloc(ptr, size);
 #endif

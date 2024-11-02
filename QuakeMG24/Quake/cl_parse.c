@@ -29,7 +29,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_parse.c  -- parse a message received from the server
 
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 const char *const svc_strings[] =
 {
     "svc_bad",
@@ -216,14 +218,436 @@ void CL_KeepaliveMessage(void)
     SZ_Clear(&_g->cls.message);
 }
 
+// For each level, we have a different set of stuff to cache
+const int16_t modelsToCacheStart[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_v_axe_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_lavaball_mdl_string_index,
+    progs_flame_mdl_string_index,
+    progs_flame2_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M1[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_soldier_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_dog_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M2[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_soldier_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M3[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M4[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_wizard_mdl_string_index,
+    progs_knight_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M5[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_knight_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_v_rock2_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_v_axe_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_light_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M6[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_v_rock2_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_v_axe_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_light_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE1M7[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_v_rock2_mdl_string_index,
+    progs_v_axe_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_light_mdl_string_index,
+    progs_end1_mdl_string_index,
+    progs_boss_mdl_string_index,
+    progs_flame_mdl_string_index,
+    progs_lavaball_mdl_string_index,
+    progs_bolt3_mdl_string_index,
+
+    0
+};
+const int16_t modelsToCacheE1M8[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_v_rock2_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_light_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_wizard_mdl_string_index,
+    progs_lavaball_mdl_string_index,
+    progs_shambler_mdl_string_index,
+    progs_v_axe_mdl_string_index,
+    0
+};
+// episode 2
+const int16_t modelsToCacheE2M1[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_soldier_mdl_string_index,
+    progs_dog_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_enforcer_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE2M2[] =
+{   // very few flash
+    progs_v_shot2_mdl_string_index, // typically you start e2m2 with super shotgun
+    progs_flame_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE2M3[] =
+{
+    progs_v_shot2_mdl_string_index, // typically you start e2m3 with super shotgun
+    progs_flame_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE2M4[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_flame_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE2M5[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE2M6[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE2M7[] =
+{
+    progs_ogre_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE3M1[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_soldier_mdl_string_index,
+    progs_enforcer_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE3M2[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_wizard_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_shambler_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE3M3[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheGibsOnly[] =
+{
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE3M7[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_rock2_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+// episode 4
+const int16_t modelsToCacheE4M1[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_soldier_mdl_string_index,
+    progs_dog_mdl_string_index,
+    progs_enforcer_mdl_string_index,
+    progs_backpack_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE4M2[] =
+{
+    progs_v_shot_mdl_string_index,
+    progs_v_shot2_mdl_string_index,
+    progs_knight_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE4M3[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_knight_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_wizard_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE4M4[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_wizard_mdl_string_index,
+    progs_knight_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE4M5[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE4M6[] =
+{
+    progs_v_shot2_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_zombie_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+const int16_t modelsToCacheE4M8[] =
+{
+    progs_zombie_mdl_string_index,
+    progs_demon_mdl_string_index,
+    progs_ogre_mdl_string_index,
+    progs_hknight_mdl_string_index,
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+    0
+};
+// end level. Very slow due to high number of big enemies.
+const int16_t modelsToCacheEnd[] =
+{
+    // this level has 560k+ flash free.
+    // Let's cache all the stuff that will appear in the pit, as they are already decreasing speed a lot.
+    // cache all weapons (except axe)
+    progs_v_shot2_mdl_string_index,
+    progs_v_rock_mdl_string_index,
+    progs_v_nail2_mdl_string_index,
+    progs_v_rock2_mdl_string_index,
+    progs_v_light_mdl_string_index,
+    // cache the main monster
+    progs_oldone_mdl_string_index,
+    // then we have shambler and scrag
+    progs_shalrath_mdl_string_index,
+    progs_shambler_mdl_string_index,
+    progs_teleport_mdl_string_index,
+    progs_bolt_mdl_string_index,
+    //
+    progs_grenade_mdl_string_index,
+    progs_s_spike_mdl_string_index,
+    progs_missile_mdl_string_index,
+    progs_bolt2_mdl_string_index,
+    // other stuff to be cached
+    progs_flame_mdl_string_index,
+    // these if some space remains
+    progs_wizard_mdl_string_index,
+    progs_fish_mdl_string_index,
+    //
+    progs_gib1_mdl_string_index,
+    progs_gib2_mdl_string_index,
+    progs_gib3_mdl_string_index,
+
+    // who is going to use these weapons in this level ?
+//    progs_v_shot_mdl_string_index,
+//    progs_v_nail_mdl_string_index,
+//    progs_v_axe_mdl_string_index,
+    //
+    0
+};
+
+const int16_t * modelsToCacheByLevel[32 + 2] =
+{
+    modelsToCacheStart, // start
+    // e1
+    modelsToCacheE1M1, // e1m1
+    modelsToCacheE1M2, // e1m2
+    modelsToCacheE1M3, // e1m3
+    modelsToCacheE1M4, // e1m4
+    modelsToCacheE1M5, // e1m5
+    modelsToCacheE1M6, // e1m6
+    modelsToCacheE1M7, // e1m7
+    modelsToCacheE1M8, // e1m8
+    // e2
+    modelsToCacheE2M1, // e2m1
+    modelsToCacheE2M2, // e2m2
+    modelsToCacheE2M3, // e2m3
+    modelsToCacheE2M4, // e2m4
+    modelsToCacheE2M5, // e2m5
+    modelsToCacheE2M6, // e2m6
+    modelsToCacheE2M7, // e2m7
+    NULL, // e2m8 does not exist
+    // e3
+    modelsToCacheE3M1, // e3m1
+    modelsToCacheE3M2, // e3m2
+    modelsToCacheE3M3, // e3m3
+    modelsToCacheGibsOnly, // e3m4
+    modelsToCacheGibsOnly, // e3m5
+    modelsToCacheGibsOnly, // e3m6
+    modelsToCacheE3M7, // e#m7
+    NULL, // e3m8 does not exist
+    // e4
+    modelsToCacheE4M1, // e4m1
+    modelsToCacheE4M2, // e4m2
+    modelsToCacheE4M3, // e4m3
+    modelsToCacheE4M4, // e4m4
+    modelsToCacheE4M5, // e4m5
+    modelsToCacheE4M6, // e4m6
+    modelsToCacheGibsOnly, // e4m7
+    modelsToCacheE4M8, // e4m8
+    modelsToCacheEnd, // end
+
+};
+
+
 /*
  ==================
  CL_ParseServerInfo
  ==================
  */
 //extern client_entity_t *_client_entity_data;
+
+//
+//
 void CL_ParseServerInfo(void)
 {
+    int reloadingSameLevel = areModelsFinalized();
     char *str;
     int i;
 #if READ_BEFORE_CACHE
@@ -272,19 +696,27 @@ void CL_ParseServerInfo(void)
 // precache models
     model_t **model_precache = (model_t**) ((byte*) getTextureCacheBuffer() + 2048); // + 2048 because the temp string "strbuf" is at +0, and is 2048 bytes long
     memset(model_precache, 0, sizeof(*model_precache) * MAX_MODELS);
-    _g->cl.model_precache = model_precache;
+    if (!reloadingSameLevel)
+    {
+        _g->cl.model_precache = model_precache;
+    }
     int nummodels;
     for (nummodels = 1;; nummodels++)
     {
         str = MSG_ReadString(strbuf, 2048);
         if (!str[0])
-            break; edictDbgPrintf("Server asked to precache %s\r\n", str);
+            break;
+        if (reloadingSameLevel)
+        {
+            // don't change anything.
+            continue;
+        } 
+        edictDbgPrintf("Server asked to precache %s\r\n", str);
         if (nummodels == MAX_MODELS)
         {
             Con_Printf("Server sent too many model precaches\n");
             return;
         }
-//    strcpy (model_precache[nummodels], str);
         Mod_TouchModel(str);
         //
         _g->cl.model_precache[nummodels] = Mod_ForName(str, false);
@@ -294,9 +726,12 @@ void CL_ParseServerInfo(void)
             return;
         }
 //    CL_KeepaliveMessage ();
-    } edictDbgPrintf("Server asked to precache %d models\r\n", nummodels);
+    }
+
+    edictDbgPrintf("Server asked to precache %d models\r\n", nummodels);
     //FIXME("Finished precaching firstModels\r\n");
     byte *wm = (byte*) mod_known;
+#if WIN32
     if (sv.active)
     {
         for (int i = 0; i < MAX_MODELS; i++)
@@ -304,33 +739,37 @@ void CL_ParseServerInfo(void)
             edictDbgPrintf("sv.models[%i] = 0x%p; &modknown[%i] = %p\r\n", i , sv.models[i], i, &mod_known[i]);
         }
     }
-    finalizeModKnown();
-    int delta = (byte*) mod_known - wm;
-    // fix model references
-    if (sv.active)
+#endif // WIN32
+    if (!reloadingSameLevel)
     {
-        sv.worldmodel = (model_t*) ((byte*) sv.worldmodel + delta);
-        for (int i = 0; i < MAX_MODELS; i++)
+        finalizeModKnown();
+        int delta = (byte*) mod_known - wm;
+        // fix model references
+        if (sv.active)
         {
-            //next-hack: I'm not happy about this but whatever...
-            sv.models[i] = (model_t*) ((byte*) sv.models[i] + delta);
+            sv.worldmodel = (model_t*) ((byte*) sv.worldmodel + delta);
+            for (int i = 0; i < MAX_MODELS; i++)
+            {
+                //next-hack: I'm not happy about this but whatever...
+                sv.models[i] = (model_t*) ((byte*) sv.models[i] + delta);
+            }
+            sv.models = storeToInternalFlash(sv.models, sizeof(*sv.models) * MAX_MODELS);
         }
-        sv.models = storeToInternalFlash(sv.models, sizeof(*sv.models) * MAX_MODELS);
-    }
-    // next-hack this is a horrid hack, but I can't find a better way.
-    _g->cl.model_precache[0] = Mod_ForName("progs/h_player.mdl", 1);
-    //
-    for (int i = 1; i < MAX_MODELS; i++)
-    {
-        _g->cl.model_precache[i] = (model_t*) ((byte*) _g->cl.model_precache[i] + delta);
-    }
-    // store this info as well
-    _g->cl.model_precache = storeToInternalFlash(_g->cl.model_precache, sizeof(*_g->cl.model_precache) * MAX_MODELS);
-// precache sounds
-    sfx_t **sound_precache = (sfx_t**) ((byte*) getTextureCacheBuffer() + 2048);  // + 2048 because the temp string "strbuf" is at +0, and is 2048 bytes long
-    memset(sound_precache, 0, sizeof(*sound_precache) * MAX_SFX);
+        // next-hack this is a horrid hack, but I can't find a better way.
+        _g->cl.model_precache[0] = Mod_ForName("progs/h_player.mdl", 1);
+        //
+        for (int i = 1; i < MAX_MODELS; i++)
+        {
+            _g->cl.model_precache[i] = (model_t*) ((byte*) _g->cl.model_precache[i] + delta);
+        }
+        // store this info as well
+        _g->cl.model_precache = storeToInternalFlash(_g->cl.model_precache, sizeof(*_g->cl.model_precache) * MAX_MODELS);
+        // precache sounds
+        sfx_t **sound_precache = (sfx_t**) ((byte*) getTextureCacheBuffer() + 2048); // + 2048 because the temp string "strbuf" is at +0, and is 2048 bytes long
+        memset(sound_precache, 0, sizeof(*sound_precache) * MAX_SFX);
 
-    _g->cl.sound_precache = sound_precache;
+        _g->cl.sound_precache = sound_precache;
+    }
     S_BeginPrecaching();
     int numsounds;
     for (numsounds = 1;; numsounds++)
@@ -338,6 +777,11 @@ void CL_ParseServerInfo(void)
         str = MSG_ReadString(strbuf, 2048);
         if (!str[0])
             break;
+        if (reloadingSameLevel)
+        {
+            continue;
+        }
+
         if (numsounds == MAX_SOUNDS)
         {
             Con_Printf("Server sent too many sound precaches\n");
@@ -348,8 +792,10 @@ void CL_ParseServerInfo(void)
         _g->cl.sound_precache[numsounds] = S_PrecacheSound(str);
     }
     S_EndPrecaching();
-    _g->cl.sound_precache = storeToInternalFlash(_g->cl.sound_precache, sizeof(*_g->cl.sound_precache) * numsounds);
-
+    if (!reloadingSameLevel)
+    {
+        _g->cl.sound_precache = storeToInternalFlash(_g->cl.sound_precache, sizeof(*_g->cl.sound_precache) * numsounds);
+    }
 #endif
     if (_g->cls.demoplayback)
         _g->client_entity_data = Z_Calloc(MAX_EDICTS + ADDITIONAL_CLIENT_ENTITIES, sizeof(*_g->client_entity_data), PU_STATIC, NULL);
@@ -368,28 +814,123 @@ void CL_ParseServerInfo(void)
     setEntityModel(&cl_entities[0], _g->cl.model_precache[1]);
     _g->cl.worldmodel = _g->cl.model_precache[1];
 #if MARK_NODE_IN_SURFACE
-#if USE_NODE_DLIGHTBITS
-#error
-    if (nodeDlightBits)
-        Z_Free(nodeDlightBits);
-    nodeDlightBits = Z_Calloc(sizeof(*nodeDlightBits) * cl.worldmodel->numnodes, 1, PU_STATIC, NULL);
-#else
-    if (nodeHadDlight)
-    {
-        Z_Free(nodeHadDlight);
-    }
+    Z_Free(nodeHadDlight);  // NOTE: NULL test not required. It is handled by Z_Free.
 #if !SEPARATE_BRUSH_MODEL_DATA
     nodeHadDlight = Z_Calloc( 4 * (cl.worldmodel->numnodes + 31) / 32 , 1 , PU_STATIC, NULL);
 #else
     nodeHadDlight = Z_Calloc(4 * (_g->cl.worldmodel->brushModelData->numnodes + 31) / 32, 1, PU_STATIC, NULL);
 #endif
-#endif
 #endif // MARK_NODE_IN_SURFACE
     R_NewMap();
 
-//  Hunk_Check ();    // make sure nothing is hurt
-
     noclip_anglehack = false;   // noclip is turned off at start
+    //
+#if WIN32
+            printf("\r\n\r\n>>>>Flash remaining %d, zone remaining %d\r\n\r\n\r\n", getInternalFlashRemaningSize(), getZoneRemainingSize());
+            FIXME("Check how much we have free!");
+#endif // WIN32
+
+#if CACHE_SKINS_TO_FLASH && CACHEABLE_SKIN
+    // cache to most common to less common. This shall be map dependent
+    // FIXME: find a decent way to figure episode and map!
+    const char *mapname = (char*) getStringFromIndex(_g->cl.worldmodel->nameIdx) + sizeof("maps/") - 1;  // sizeof includes null terminator
+    int mapnumber;
+    if (mapname[0] == 's') // start
+    {
+        mapnumber = 0;
+    }
+    else if (mapname[1] == 'n') // end
+    {
+        mapnumber = sizeof(modelsToCacheByLevel) / sizeof(modelsToCacheByLevel[0]) - 1;
+    }
+    else
+    {
+        int episode = mapname[1] - '0';
+        int map = mapname[3] - '0';
+        mapnumber = (episode - 1) * 8 + map;
+    }
+    //
+    //
+    const int16_t *modelsToCache = modelsToCacheByLevel[mapnumber];
+    for (unsigned int i = 0; modelsToCache[i] != 0; i++)
+    {
+        for (int m = 0; m < nummodels; m++)
+        {
+            if (mod_known[m].nameIdx != modelsToCache[i])
+            {
+                continue;
+            }
+#if WIN32
+                printf("Checking model for caching %s\r\n", getStringFromIndex(modelsToCache[i]));
+            #endif
+            model_t *mod = &mod_known[m];
+#if WIN32
+                printf("Mod found: %p\r\n", mod);
+            #endif
+            // get model size
+            aliashdr_t *paliashdr = (aliashdr_t*) Mod_Extradata(mod);
+            mdl_t *pmdl = (mdl_t*) ((byte*) paliashdr + paliashdr->model);
+            int size = pmdl->skinheight * pmdl->skinwidth;
+#if WIN32
+                printf("Caching Model %s, size %d ", getStringFromIndex(mod->nameIdx), size);
+            #endif
+            int skinnum = 0;        // cache only skin 0.
+            maliasskindesc_t *pskindesc = ((maliasskindesc_t*) ((byte*) paliashdr + paliashdr->skindesc)) + skinnum;
+            if ((uint32_t) pskindesc->pCachedSkin != 0xFFFFFFFF)
+            {
+#if WIN32
+                    FIXME("Model already cached!\r\n");
+                #endif // WIN32
+                continue;
+            }
+            if (getInternalFlashRemaningSize() >= size)
+            {
+                byte *pCachedSkin;
+                pCachedSkin = storeToInternalFlash((byte*) pskindesc->originalSkin + paliashdr->extMemAddress, size);
+                // update pointer!
+                storeToInternalFlashAtPointer(&pCachedSkin, &pskindesc->pCachedSkin, sizeof(pCachedSkin));
+#if WIN32
+                    printf("... stored to %p\r\n", pskindesc->pCachedSkin);
+                #endif
+            }
+            else
+            {
+#if WIN32
+                    printf(" wont be stored, too large, as we have only %d bytes free\r\n", getInternalFlashRemaningSize());
+                    FIXME("NOT CACHED");
+                #endif
+            }
+            break;
+        }
+    }
+#endif
+    // cache colors to RAM if we have a lot of zone mem free.
+    // always free the colormap
+    if (vid.colormap != host_colormap)
+    {
+        Z_Free(vid.colormap);
+        vid.colormap = host_colormap;
+    }
+    //
+    if (getZoneRemainingSize() > MIN_ZONE_FREE_TO_CACHE_COLORMAP) // 16384 + about 50 edicts shall be free
+    {
+        vid.colormap = Z_CallocFailable(1, 16384, PU_LEVEL, NULL);
+        if (vid.colormap)
+        {
+            memcpy(vid.colormap, host_colormap, 16384);
+        }
+        else
+        {
+            vid.colormap = host_colormap;
+        }
+    }
+    else
+    {
+
+#if WIN32
+            FIXME("Not enough mem to cache colormap");
+        #endif // WIN32
+    }
 }
 
 /*
@@ -436,7 +977,9 @@ void CL_ParseUpdate(int bits)
         if (num == 1)
             ent->data = getNextEdict(sv.edicts);
         else
+        {
             FIXME("Reading data for a client different than 1");
+        }
 #endif
     }
     else
@@ -651,7 +1194,7 @@ void CL_ParseUpdate(int bits)
     }
 }
 #if DIRECT_SINGLE_PLAYER
-extern uint8_t pve[(MAX_EDICTS + 7) / 8];  //potential visible entities
+extern uint8_t *pve; //[(MAX_EDICTS + 7) / 8];  //potential visible entities
 #endif // DIRECT_SINGLE_PLAYER
 #define START_DUMMY_UPDATE_EDICT 2      // one after client
 void CL_ParseDummyUpdate(void)
@@ -1035,11 +1578,12 @@ void CL_ParseServerMessage(void)
 //
 // if recording demos, copy the message out
 //
+#if 0
     if (cl_shownet == 1)
         Con_Printf("%i ", net_message.cursize);
     else if (cl_shownet == 2)
         Con_Printf("------------------\n");
-
+#endif
     _g->cl.onground = false;  // unless the server says otherwise
 //
 // parse the message

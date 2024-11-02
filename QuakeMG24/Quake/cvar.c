@@ -194,12 +194,14 @@ CVARDECLDIFF(v_gamma, "gamma", "1", true, false, CV_FLOAT);
 
 CVARDECL(con_notifytime, "3", false, false, CV_BYTE);		//seconds
 
+#if HAS_MULTIPLAYER
 CVARDECL(cl_name, "player", true, false, CV_STRING);
+#endif
 CVARDECL(cl_color, "0", true, false, CV_BYTE);
 
 CVARDECL(showfps, "0", false, false, CV_BYTE);
 
-CVARDECL(cl_shownet, "0", false, false, CV_BYTE);	// can be 0, 1, or 2
+//CVARDECL(cl_shownet, "0", false, false, CV_BYTE);	// can be 0, 1, or 2
 CVARDECL(cl_nolerp, "0", false, false, CV_BYTE);
 
 CVARDECL(lookspring, "0", true, false, CV_BYTE);
@@ -224,44 +226,51 @@ CVARDECL(cl_yawspeed, "140", false, false, CV_SHORT);
 CVARDECL(cl_pitchspeed, "150", false, false, CV_SHORT);
 CVARDECL(cl_anglespeedkey, "1.5", false, false, CV_FLOAT);
 CVARDECL(registered, "0", false, false, CV_BYTE);
+#if WIN32
 CVARDECL(cmdline, "0", false, true, CV_BYTE);
-CVARDECL(d_subdiv16, "1", false, false, CV_BYTE);
-CVARDECL(d_mipcap, "0", false, false, CV_BYTE);
+#endif
+//CVARDECL(d_subdiv16, "1", false, false, CV_BYTE);
+//CVARDECL(d_mipcap, "0", false, false, CV_BYTE);
 CVARDECL(d_mipscale, "1", false, false, CV_FLOAT);
 CVARDECL(host_framerate, "0", false, false, CV_BYTE);	// set for slow motion
+#if WIN32
 CVARDECL(host_speeds, "0", false, false, CV_BYTE);			// set for running times
-
+#endif
 CVARDECL(sys_ticrate, "0.05", false, false, CV_FLOAT);
+#if 0
 CVARDECL(serverprofile, "0", false, false, CV_BYTE);
 
 CVARDECL(fraglimit, "0", false, true, CV_BYTE);
 CVARDECL(timelimit, "0", false, true, CV_BYTE);
 CVARDECL(teamplay, "0", false, true, CV_BYTE);
-
+#endif
 CVARDECL(samelevel, "0", false, false, CV_BYTE);
 CVARDECL(noexit, "0", false, true, CV_BYTE);
 
 #ifdef QUAKE2
 CVARDECL(	developer ,"1", false, false,);	// should be 0 for release!
-#else
+#elif WIN32
 CVARDECL(developer, "0", false, false, CV_BYTE);
 #endif
 
 CVARDECL(skill, "1", false, false, CV_BYTE);						// 0 - 3
+#if HAS_MULTIPLAYER
 CVARDECL(deathmatch, "0", false, false, CV_BYTE);			// 0, 1, or 2
 CVARDECL(coop, "0", false, false, CV_BYTE);			// 0 or 1
-
+#endif
 CVARDECL(pausable, "1", false, false, CV_BYTE);
 
 CVARDECL(temp1, "0", false, false, CV_BYTE);
+#if HAS_MULTIPLAYER
 CVARDECL(net_messagetimeout, "300", false, false, CV_SHORT);
+#endif
 CVARDECL(hostname, "UNNAMED", false, false, CV_STRING);
 
 #ifdef IDGODS
 CVARDECL(	idgods , "0");
 #endif
 CVARDECL(sv_aim, "0.93", false, false, CV_FLOAT);
-CVARDECL(nomonsters, "0", false, false, CV_BYTE);
+//CVARDECL(nomonsters, "0", false, false, CV_BYTE);
 CVARDECL(gamecfg, "0", false, false, CV_BYTE);
 CVARDECL(scratch1, "0", false, false, CV_HALT);
 CVARDECL(scratch2, "0", false, false, CV_HALT);
@@ -282,8 +291,10 @@ CVARDECL(r_fullbright, "0", false, false, CV_BYTE);
 CVARDECL(r_drawentities, "1", false, false, CV_BYTE);
 CVARDECL(r_drawviewmodel, "1", false, false, CV_BYTE);
 CVARDECL(r_aliasstats, "0", false, false, CV_BYTE);
+#if WIN32
 CVARDECL(r_dspeeds, "0", false, false, CV_BYTE);
-CVARDECL(r_drawflat, "0", false, false, CV_BYTE);
+#endif
+//CVARDECL(r_drawflat, "0", false, false, CV_BYTE);
 CVARDECL(r_ambient, "0", false, false, CV_BYTE);
 CVARDECL(r_reportsurfout, "0", false, false, CV_BYTE);
 CVARDECL(r_maxsurfs, "0", false, false, CV_SHORT);
@@ -297,17 +308,17 @@ CVARDECL(viewsize, "100", true, false, CV_BYTE);
 CVARDECL(fov, "90", false, false, CV_BYTE);	// 10 - 170
 CVARDECL(scr_conspeed, "300", false, false, CV_SHORT);
 CVARDECL(scr_centertime, "2", false, false, CV_BYTE);
-CVARDECL(showram, "0", false, false, CV_BYTE);
-CVARDECL(showturtle, "0", false, false, CV_BYTE);
+//CVARDECL(showram, "0", false, false, CV_BYTE);
+//CVARDECL(showturtle, "0", false, false, CV_BYTE);
 CVARDECL(showpause, "1", false, false, CV_BYTE);
 CVARDECL(scr_printspeed, "8", false, false, CV_BYTE);
 CVARDECL(bgmvolume, "1", true, false, CV_FLOAT);
 CVARDECL(volume, "0.7", true, false, CV_FLOAT);
 
 CVARDECL(nosound, "0", false, false, CV_BYTE);
-CVARDECL(precache, "1", false, false, CV_BYTE);
-CVARDECL(loadas8bit, "0", false, false, CV_BYTE);
-CVARDECL(bgmbuffer, "4096", false, false, CV_SHORT);
+//CVARDECL(precache, "1", false, false, CV_BYTE);
+//CVARDECL(loadas8bit, "0", false, false, CV_BYTE);
+//CVARDECL(bgmbuffer, "4096", false, false, CV_SHORT);
 CVARDECL(ambient_level, "0.3", false, false, CV_FLOAT);
 CVARDECL(ambient_fade, "100", false, false, CV_BYTE);
 CVARDECL(snd_noextraupdate, "0", false, false, CV_BYTE);
@@ -323,10 +334,11 @@ CVARDECL(sv_idealpitchscale, "0.8", false, false, CV_FLOAT);
 CVARDECL(sv_maxspeed, "320", false, true, CV_SHORT);
 CVARDECL(sv_accelerate, "10", false, false, CV_BYTE);
 CVARDECL(sys_linerefresh, "0", false, false, CV_BYTE);	// set for entity display
-CVARDECL(sys_nostdout, "0", false, false, CV_BYTE);
+//CVARDECL(sys_nostdout, "0", false, false, CV_BYTE);
+#if LCD_X
 CVARDECL(lcd_x, "0", false, false, CV_SHORT);
 CVARDECL(lcd_yaw, "0", false, false, CV_SHORT);
-
+#endif
 CVARDECL(scr_ofsx, "0", false, false, CV_BYTE);
 CVARDECL(scr_ofsy, "0", false, false, CV_BYTE);
 CVARDECL(scr_ofsz, "0", false, false, CV_BYTE);
@@ -359,79 +371,90 @@ CVARDECL(cl_crossy, "0", false, false, CV_BYTE);
 
 const cvar_t cvar_vars[] =
 {
-CVARDEF(v_centermove, "0.15", false, false, CV_FLOAT),
-CVARDEF(v_centerspeed,"500", false, false, CV_SHORT),
+    CVARDEF(v_centermove, "0.15", false, false, CV_FLOAT),
+    CVARDEF(v_centerspeed,"500", false, false, CV_SHORT),
 
-CVARDEFDIFF(v_gamma, "gamma", "0.4", true, false, CV_FLOAT),
+    CVARDEFDIFF(v_gamma, "gamma", "0.4", true, false, CV_FLOAT),
 
-CVARDEF(con_notifytime,"3", false, false, CV_BYTE),		//seconds
-CVARDEF(cl_name, "player", true, false, CV_STRING),
-CVARDEF(cl_color, "0", true, false, CV_BYTE),
+    CVARDEF(con_notifytime,"3", false, false, CV_BYTE),		//seconds
+#if HAS_MULTIPLAYER
+    CVARDEF(cl_name, "player", true, false, CV_STRING),
+#endif
+    CVARDEF(cl_color, "0", true, false, CV_BYTE),
 
-CVARDEF(showfps, "0", false, false, CV_BYTE),
+    CVARDEF(showfps, "0", false, false, CV_BYTE),
 
-CVARDEF(cl_shownet,"0", false, false, CV_BYTE),	// can be 0, 1, or 2
-CVARDEF(cl_nolerp,"0", false, false, CV_BYTE),
+    //CVARDEF(cl_shownet,"0", false, false, CV_BYTE),	// can be 0, 1, or 2
+    CVARDEF(cl_nolerp,"0", false, false, CV_BYTE),
 
-CVARDEF(lookspring,"0", true, false, CV_BYTE),
-CVARDEF(lookstrafe,"0", true, false, CV_BYTE),
-CVARDEF(sensitivity,"3", true, false, CV_FLOAT),
+    CVARDEF(lookspring,"0", true, false, CV_BYTE),
+    CVARDEF(lookstrafe,"0", true, false, CV_BYTE),
+    CVARDEF(sensitivity,"3", true, false, CV_FLOAT),
 
-CVARDEF(m_pitch,"0.022", true, false, CV_FLOAT),
-CVARDEF(m_yaw, "0.022", true, false, CV_FLOAT),
-CVARDEF(m_forward,"1", true, false, CV_FLOAT),
-CVARDEF(m_side,"0.8", true, false, CV_FLOAT),
-CVARDEF( chase_back, "100", false, false, CV_SHORT),
-CVARDEF( chase_up, "16", false, false, CV_SHORT),
-CVARDEF( chase_right, "0", false, false, CV_SHORT),
-CVARDEF( chase_active, "0", false, false, CV_SHORT),
-CVARDEF( cl_upspeed,"200", false, false, CV_SHORT),
-CVARDEF( cl_forwardspeed ,"200", true, false, CV_SHORT),
-CVARDEF( cl_backspeed ,"200", true, false, CV_SHORT),
-CVARDEF( cl_sidespeed ,"350", false, false, CV_SHORT),
-CVARDEF( cl_movespeedkey ,"2.0", false, false, CV_FLOAT),
-CVARDEF( cl_yawspeed ,"140", false, false, CV_SHORT),
-CVARDEF( cl_pitchspeed ,"150", false, false, CV_SHORT),
-CVARDEF( cl_anglespeedkey ,"1.5", false, false, CV_FLOAT),
-CVARDEF( registered ,"0", false, false, CV_BYTE),
-CVARDEF( cmdline ,"0", false, true, CV_BYTE),
-CVARDEF( d_subdiv16 , "1", false, false, CV_BYTE),
-CVARDEF( d_mipcap , "0", false, false, CV_BYTE),
-CVARDEF( d_mipscale , "1", false, false, CV_FLOAT),
-CVARDEF( host_framerate ,"0", false, false, CV_BYTE),	// set for slow motion
-CVARDEF( host_speeds ,"0", false, false, CV_BYTE),			// set for running times
+    CVARDEF(m_pitch,"0.022", true, false, CV_FLOAT),
+    CVARDEF(m_yaw, "0.022", true, false, CV_FLOAT),
+    CVARDEF(m_forward,"1", true, false, CV_FLOAT),
+    CVARDEF(m_side,"0.8", true, false, CV_FLOAT),
+    CVARDEF( chase_back, "100", false, false, CV_SHORT),
+    CVARDEF( chase_up, "16", false, false, CV_SHORT),
+    CVARDEF( chase_right, "0", false, false, CV_SHORT),
+    CVARDEF( chase_active, "0", false, false, CV_SHORT),
+    CVARDEF( cl_upspeed,"200", false, false, CV_SHORT),
+    CVARDEF( cl_forwardspeed ,"200", true, false, CV_SHORT),
+    CVARDEF( cl_backspeed ,"200", true, false, CV_SHORT),
+    CVARDEF( cl_sidespeed ,"350", false, false, CV_SHORT),
+    CVARDEF( cl_movespeedkey ,"2.0", false, false, CV_FLOAT),
+    CVARDEF( cl_yawspeed ,"140", false, false, CV_SHORT),
+    CVARDEF( cl_pitchspeed ,"150", false, false, CV_SHORT),
+    CVARDEF( cl_anglespeedkey ,"1.5", false, false, CV_FLOAT),
+    CVARDEF( registered ,"0", false, false, CV_BYTE),
+#if WIN32
+    CVARDEF( cmdline ,"0", false, true, CV_BYTE),
+#endif
+    //CVARDEF( d_subdiv16 , "1", false, false, CV_BYTE),
+    //CVARDEF( d_mipcap , "0", false, false, CV_BYTE),
+    CVARDEF( d_mipscale , "1", false, false, CV_FLOAT),
+    CVARDEF( host_framerate ,"0", false, false, CV_BYTE),	// set for slow motion
+#if WIN32
+    CVARDEF( host_speeds ,"0", false, false, CV_BYTE),			// set for running times
+#endif
+    CVARDEF( sys_ticrate ,"0.05", false, false, CV_FLOAT),
 
-CVARDEF( sys_ticrate ,"0.05", false, false, CV_FLOAT),
-CVARDEF( serverprofile ,"0", false, false, CV_BYTE),
-
-CVARDEF( fraglimit ,"0",false,true, CV_BYTE),
-CVARDEF( timelimit ,"0",false,true, CV_BYTE),
-CVARDEF( teamplay ,"0",false,true, CV_BYTE),
-
-CVARDEF( samelevel ,"0", false, false, CV_BYTE),
-CVARDEF( noexit ,"0",false,true, CV_BYTE),
+//    CVARDEF( serverprofile ,"0", false, false, CV_BYTE),
+#if 0
+    CVARDEF( fraglimit ,"0",false,true, CV_BYTE),
+    CVARDEF( timelimit ,"0",false,true, CV_BYTE),
+    CVARDEF( teamplay ,"0",false,true, CV_BYTE),
+#endif
+    CVARDEF( samelevel ,"0", false, false, CV_BYTE),
+    CVARDEF( noexit ,"0",false,true, CV_BYTE),
 
 #ifdef QUAKE2
     CVARDEF( developer ,"1", false, false,),	// should be 0 for release!
-#else
+#elif WIN32
     CVARDEF( developer ,"0", false, false, CV_BYTE),
 #endif
 
     CVARDEF( skill ,"1", false, false, CV_BYTE),						// 0 - 3
+#if HAS_MULTIPLAYER
     CVARDEF( deathmatch ,"0", false, false, CV_BYTE),			// 0, 1, or 2
     CVARDEF( coop ,"0", false, false, CV_BYTE),			// 0 or 1
-
+#endif
     CVARDEF( pausable ,"1", false, false, CV_BYTE),
 
     CVARDEF( temp1 ,"0", false, false, CV_BYTE),
+#if HAS_MULTIPLAYER
     CVARDEF( net_messagetimeout ,"300", false, false, CV_SHORT),
+#endif
     CVARDEF( hostname , "UNNAMED", false, false, CV_STRING),
 
 #ifdef IDGODS
     CVARDEF( idgods , "0"),
 #endif
     CVARDEF( sv_aim , "0.93", false, false, CV_FLOAT),
+#if 0
     CVARDEF( nomonsters , "0", false, false, CV_BYTE),
+#endif
     CVARDEF( gamecfg , "0", false, false, CV_BYTE),
     CVARDEF( scratch1 , "0", false, false, CV_HALT),
     CVARDEF( scratch2 , "0", false, false, CV_HALT),
@@ -442,18 +465,22 @@ CVARDEF( noexit ,"0",false,true, CV_BYTE),
     CVARDEF( saved2 , "0", true, false, CV_BYTE),
     CVARDEF( saved3 , "0", true, false, CV_BYTE),
     CVARDEF( saved4 , "0", true, false, CV_BYTE),
+#if WIN32
     CVARDEF( r_draworder ,"0", false, false, CV_BYTE),
     CVARDEF( r_speeds ,"0", false, false, CV_BYTE),
     CVARDEF( r_timegraph ,"0", false, false, CV_BYTE),
     CVARDEF( r_graphheight ,"10", false, false, CV_BYTE),
+#endif
     CVARDEF( r_clearcolor ,"2", false, false, CV_BYTE),
     CVARDEF( r_waterwarp ,"1", false, false, CV_BYTE),
     CVARDEF( r_fullbright ,"0", false, false, CV_BYTE),
     CVARDEF( r_drawentities ,"1", false, false, CV_BYTE),
     CVARDEF( r_drawviewmodel ,"1", false, false, CV_BYTE),
     CVARDEF( r_aliasstats ,"0", false, false, CV_BYTE),
+#if WIN32
     CVARDEF( r_dspeeds ,"0", false, false, CV_BYTE),
-    CVARDEF( r_drawflat , "0", false, false, CV_BYTE),
+#endif
+//    CVARDEF( r_drawflat , "0", false, false, CV_BYTE),
     CVARDEF( r_ambient , "0", false, false, CV_BYTE),
     CVARDEF( r_reportsurfout , "0", false, false, CV_BYTE),
     CVARDEF( r_maxsurfs , "0", false, false, CV_SHORT),
@@ -467,21 +494,21 @@ CVARDEF( noexit ,"0",false,true, CV_BYTE),
     CVARDEF( fov ,"90", false, false, CV_BYTE),	// 10 - 170
     CVARDEF( scr_conspeed ,"300", false, false, CV_SHORT),
     CVARDEF( scr_centertime, "2", false, false, CV_BYTE),
-    CVARDEF( showram ,"0", false, false, CV_BYTE),
-    CVARDEF( showturtle ,"0", false, false, CV_BYTE),
+  //  CVARDEF( showram ,"0", false, false, CV_BYTE),
+  //  CVARDEF( showturtle ,"0", false, false, CV_BYTE),
     CVARDEF( showpause ,"1", false, false, CV_BYTE),
     CVARDEF( scr_printspeed ,"8", false, false, CV_BYTE),
     CVARDEF( bgmvolume , "1", true, false, CV_FLOAT),
     CVARDEF( volume , "1", true, false, CV_FLOAT),
 
     CVARDEF( nosound , "0", false, false, CV_BYTE),
-    CVARDEF( precache , "1", false, false, CV_BYTE),
-    CVARDEF( loadas8bit , "0", false, false, CV_BYTE),
-    CVARDEF( bgmbuffer , "4096", false, false, CV_SHORT),
+//    CVARDEF( precache , "1", false, false, CV_BYTE),
+  //  CVARDEF( loadas8bit , "0", false, false, CV_BYTE),
+  //  CVARDEF( bgmbuffer , "4096", false, false, CV_SHORT),
     CVARDEF( ambient_level , "0.3", false, false, CV_FLOAT),
     CVARDEF( ambient_fade , "100", false, false,CV_BYTE),
     CVARDEF( snd_noextraupdate , "0", false, false, CV_BYTE),
-    CVARDEF( snd_show , "0", false, false, CV_BYTE),
+ //   CVARDEF( snd_show , "0", false, false, CV_BYTE),
     CVARDEF( _snd_mixahead , "0.1", true, false, CV_FLOAT),
     CVARDEF( sv_friction ,"4",false,true, CV_FLOAT),
     CVARDEF( sv_stopspeed ,"100", false, false, CV_SHORT),
@@ -493,9 +520,11 @@ CVARDEF( noexit ,"0",false,true, CV_BYTE),
     CVARDEF( sv_maxspeed , "320", false, true, CV_SHORT),
     CVARDEF( sv_accelerate , "10", false, false, CV_BYTE),
     CVARDEF( sys_linerefresh ,"0", false, false, CV_BYTE),	// set for entity display
-    CVARDEF( sys_nostdout ,"0", false, false, CV_BYTE),
+//    CVARDEF( sys_nostdout ,"0", false, false, CV_BYTE),
+#if LCD_X
     CVARDEF( lcd_x ,"0", false, false, CV_SHORT),
     CVARDEF( lcd_yaw ,"0", false, false, CV_SHORT),
+#endif
 
     CVARDEF( scr_ofsx ,"0", false, false,CV_BYTE),
     CVARDEF( scr_ofsy ,"0", false, false, CV_BYTE),

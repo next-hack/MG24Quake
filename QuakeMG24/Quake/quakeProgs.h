@@ -3143,6 +3143,7 @@ void qcc_bubble_split(void);
 void qcc_viewthing(void);
 void qcc_func_wall_use(void);
 void qcc_func_wall(void);
+void qcc_func_illusionary(void);
 void qcc_func_episodegate(void);
 void qcc_func_bossgate(void);
 void qcc_ambient_suck_wind(void);

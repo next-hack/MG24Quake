@@ -29,7 +29,9 @@
 // snd_dma.c -- main control for any streaming sound output device
 #if !WIN32
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #ifdef _WIN32_NO_SDL
 #include "winquake.h"
 #endif
@@ -192,8 +194,8 @@ void S_Init(void)
 	Cvar_RegisterVariable(&snd_noextraupdate);
 	Cvar_RegisterVariable(&snd_show);
 	Cvar_RegisterVariable(&_snd_mixahead);
-#endif
     Cvar_Set("loadas8bit", "1");
+#endif
     Con_Printf("loading all sounds as 8bit\n");
     snd_initialized = true;
 
@@ -241,8 +243,10 @@ void S_Init(void)
     known_sfx = (sfx_t*) sfx_buffer;
     // FIXME: this work only for single pak file!
     int numfile = 0;
+#if 0
     int oldpr = precache;
     precache = 1;
+#endif
     while (1)
     {
         dpackfile_t packfile;
@@ -264,10 +268,11 @@ void S_Init(void)
         }
         numfile++;
     }
+#if 0
     printf("precached: %d sounds. Opr is %d\r\n", num_sfx, oldpr);
-
     precache = oldpr;
     FIXME("sound");
+#endif
     // now all sounds are there. Save them
     known_sfx = storeToInternalFlash(known_sfx, sizeof(sfx_t) * num_sfx);
     //
@@ -1524,8 +1529,6 @@ void S_Init (void)
   //  	known_sfx = Hunk_AllocName (MAX_SFX*sizeof(sfx_t), "sfx_t");
 #warning this work only for single pak file!
     int numfile = 0;
-    int oldpr = precache;
-    precache = 1;
     while (1)
     {
         //FIXME("VVVV");
@@ -1544,9 +1547,7 @@ void S_Init (void)
         }
         numfile++;
     }
-    printf("precached: %d sounds. Opr is %d\r\n", num_sfx, oldpr);
 
-    precache = oldpr;
     // now all sounds are there. Save them
     known_sfx = storeToInternalFlash(known_sfx, sizeof(sfx_t) * num_sfx);
     //

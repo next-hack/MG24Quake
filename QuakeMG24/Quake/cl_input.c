@@ -31,7 +31,9 @@
 // rights reserved.
 
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 /*
  ===============================================================================
 

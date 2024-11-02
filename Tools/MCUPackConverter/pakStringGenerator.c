@@ -29,11 +29,11 @@ void addStringToList(char *str)
     {
         if (!strcmp(str,pakStrings[i]))
         {
-            printf("String <%s> found, skipped\r\n", str);
+//            printf("String <%s> found, skipped\r\n", str);
             return;     // found, do not add
         }
     }
-    printf("String <%s> added at index %i\r\n", str, numPakStrings);
+//    printf("String <%s> added at index %i\r\n", str, numPakStrings);
     pakStrings[numPakStrings] = calloc(strlen(str) + 1, 1);
     strcpy(pakStrings[numPakStrings], str);
     numPakStrings++;
@@ -107,15 +107,18 @@ skipwhite:
 	com_token[len] = 0;
 	return data;
 }
-
-
-char *parseEdictStrings (char *data)
+#define	SPAWNFLAG_NOT_EASY			256
+#define	SPAWNFLAG_NOT_MEDIUM		512
+#define	SPAWNFLAG_NOT_HARD			1024
+char * parseEdictStrings (char *data, int *spawnflags)
 {
 	char		keyname[256];
 	int			n;
     char	com_token[1024];
-
+    int init;
 // go through all the dictionary pairs
+    int isLight = 0, lightTargetNameLen = 0 ;
+    *spawnflags = 0;
 	while (1)
 	{
 	// parse key
@@ -143,23 +146,58 @@ char *parseEdictStrings (char *data)
 		if (com_token[0] == '}')
 			Sys_Error ("ED_ParseEntity: closing brace without data");
 
+        init = 1;
+
 		if (keyname[0] == '_')
 			continue;
         //printf("Keyname is %s\r\n", keyname);
         addStringToList(keyname);
+        // The following code is used just to check if the edict will actually be present
+        // remove ambient sounds
+        if (strcmp(keyname, "classname") == 0 && strstr(com_token, "ambient"))
+        {
+            *spawnflags = SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD ;
+        }
+        // remove inert light
+        if (strcmp(keyname, "classname") == 0 && !strcmp(com_token, "light"))
+        {
+                isLight = 1;
+        }
+        if (strcmp(keyname, "targetname") == 0)
+        {
+            lightTargetNameLen = strlen(com_token);
+        }
+        // end code to check if the edict will be present.
         if (!strcmp(keyname, "wad") ||
             !strcmp(keyname, "message") ||
             !strcmp(keyname, "worldtype") ||
             !strcmp(keyname, "map") ||
             !strcmp(keyname, "target"))
             addStringToList(com_token);
+        if (strcmp(keyname, "spawnflags") == 0)
+        {
+            float sf = atof(com_token);
+            *spawnflags = (int) sf | *spawnflags;
+        }
     }
-	return data;
+    // the following code is just to understand limits
+    if (isLight && !lightTargetNameLen)
+    {
+      *spawnflags = SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD ;
+    }
+    if (!init)
+        *spawnflags = SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD ;
+    return data;
 }
 void parseEntityList (char *data)
 {
     char	com_token[1024];
+#if PROFILE_NUM_ELEMENTS
+    int entnumEasy = 0;
+    int entnumMedium = 0;
+    int entnumHard = 0;
 
+#endif // PROFILE_NUM_ELEMENTS
 // parse ents
 	while (1)
 	{
@@ -172,8 +210,27 @@ void parseEntityList (char *data)
 			printf ("parseEntityList: found %s when expecting {",com_token);
 			FIXME("ERROR");
         }
-        data = parseEdictStrings (data);
+        int spawnflags = 0;
+        data = parseEdictStrings (data, &spawnflags);
+#if PROFILE_NUM_ELEMENTS
+    if (!(spawnflags & SPAWNFLAG_NOT_EASY))
+    {
+        entnumEasy++;
+        PROFILE(EntitiesEasy, entnumEasy);
     }
+    if (!(spawnflags & SPAWNFLAG_NOT_MEDIUM))
+    {
+        entnumMedium++;
+        PROFILE(EntitiesMedium, entnumMedium);
+    }
+    if (!(spawnflags & SPAWNFLAG_NOT_HARD))
+    {
+        entnumHard++;
+        PROFILE(EntitiesHard, entnumHard);
+    }
+#endif // PROFILE_NUM_ELEMENTS
+    }
+    printf("# ENTITIES IN THIS MAP %d %d %d\r\n<<<<<<<<<<<<<<", entnumEasy, entnumMedium, entnumHard);
 }
 void printAllPakStrings(void)
 {

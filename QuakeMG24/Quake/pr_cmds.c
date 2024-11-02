@@ -27,7 +27,9 @@
 
  */
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 char *entityFieldName;
 
@@ -245,7 +247,10 @@ void qcc_objerror(uint16_t stringNum)
 {
     (void) stringNum;
     while (1)
+    {
+        printf("Error: %s\r\n", getStringFromIndex(stringNum));
         FIXME("OBJERR");
+    }
 
 // next-hack: removed.
 #if 0
@@ -359,6 +364,7 @@ int qcc_find(int entid, uint16_t offset, uint16_t match)
     const char *s, *t;
     edict_t *ed;
 #if !EDICT_LINKED_LIST
+#error
 	int		e;
 	e = NUM_FOR_EDICT(PROG_TO_EDICT(entid));
 	s = getStringFromIndex(match);
@@ -400,8 +406,14 @@ int qcc_find(int entid, uint16_t offset, uint16_t match)
     #else
     ed = PROG_TO_EDICT(entid);
     s = getStringFromIndex(match);
+	// next-hack: FIXME, there might be some issues in fields not present, returning 0 in match.
+	if (match == 0)
+	    return 0;
     if (!s)
+    {
+        printf("Search idx = %d\r\n", match);
         PR_RunError("PF_Find: bad search string");
+    }
     ed = getNextEdict(ed);
     while (ed != END_EDICT)
     {
@@ -1196,6 +1208,7 @@ vector qcc_aim(int entid, float speed)
 
     VectorMA(start, 2048, dir, end);
     tr = SV_Move(start, vec3_origin, vec3_origin, end, false, ent);
+
     if (tr.ent && get_qcc_takedamage(tr.ent) == DAMAGE_AIM && (!teamplay || get_qcc_team(ent) <= 0 || get_qcc_team(ent) != get_qcc_team(tr.ent)))
     {
         //VectorCopy (pr_global_struct->v_forward.v, vret.v);

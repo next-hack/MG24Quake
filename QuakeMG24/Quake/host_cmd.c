@@ -248,15 +248,16 @@ void Host_Fly_f(void)
 void Host_Ping_f(void)
 {
 
-    int i, j;
-    float total;
-    client_t *client;
 
     if (cmd_source == src_command)
     {
         Cmd_ForwardToServer();
         return;
     }
+#if 0
+    int i, j;
+    float total;
+    client_t *client;
 
     SV_ClientPrintf("Client ping times:\n");
     for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
@@ -269,6 +270,7 @@ void Host_Ping_f(void)
         total /= NUM_PING_TIMES;
         SV_ClientPrintf("%4i %s\n", (int) (total * 1000), client->name);
     }
+#endif
 
 }
 
@@ -453,100 +455,8 @@ void Host_SavegameComment(char *text)
  */
 void Host_Savegame_f(void)
 {
-#if !USE_EXT_MEMORY
-	char	name[256];
-	FILE	*f;
-	int		i;
-	char	comment[SAVEGAME_COMMENT_LENGTH+1];
-
-	if (cmd_source != src_command)
-		return;
-
-	if (!sv.active)
-	{
-		Con_Printf ("Not playing a local game.\n");
-		return;
-	}
-
-	if (cl.intermission)
-	{
-		Con_Printf ("Can't save in intermission.\n");
-		return;
-	}
-
-	if (svs.maxclients != 1)
-	{
-		Con_Printf ("Can't save multiplayer games.\n");
-		return;
-	}
-
-	if (Cmd_Argc() != 2)
-	{
-		Con_Printf ("save <savename> : save a game\n");
-		return;
-	}
-
-	if (strstr(Cmd_Argv(1), ".."))
-	{
-		Con_Printf ("Relative pathnames are not allowed.\n");
-		return;
-	}
-
-	for (i=0 ; i<svs.maxclients ; i++)
-	{
-		if (svs.clients[i].active && (get_qcc_health(svs.clients[i].edict) <= 0) )
-		{
-			Con_Printf ("Can't savegame with a dead player\n");
-			return;
-		}
-	}
-
-	sprintf (name, "%s/%s", com_gamedir, Cmd_Argv(1));
-	COM_DefaultExtension (name, ".sav");
-
-	Con_Printf ("Saving game to %s...\n", name);
-	f = fopen (name, "w");
-	if (!f)
-	{
-		Con_Printf ("ERROR: couldn't open.\n");
-		return;
-	}
-
-	fprintf (f, "%i\n", SAVEGAME_VERSION);
-	Host_SavegameComment (comment);
-	fprintf (f, "%s\n", comment);
-	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
-	fprintf (f, "%d\n", current_skill);
-	fprintf (f, "%s\n", sv.name);
-	fprintf (f, "%f\n",sv.time);
-
-// write the light styles
-#if !DIRECT_SINGLE_PLAYER
-	for (i=0 ; i<MAX_LIGHTSTYLES ; i++)
-	{
-		if (sv.lightstyles[i])
-			fprintf (f, "%s\n", sv.lightstyles[i]);
-		else
-			fprintf (f,"m\n");
-	}
-#else
-#warning fixme!
-#endif
-
-	ED_WriteGlobals (f);
-	for (i=0 ; i<sv.num_edicts ; i++)
-	{
-#if !EDICT_LINKED_LIST
-		ED_Write (f, EDICT_NUM(i));
-#else
-    FIXME("NOT IMPLEMENTED");
-#endif
-		fflush (f);
-	}
-	fclose (f);
-	Con_Printf ("done.\n");
-#else
+    printf("Size of is nvm: %d sett: %d %d sg: %d %d\r\n", sizeof(nvmData_t), sizeof(padded_settings_t), sizeof(settings_t), sizeof (padded_savegame_t), sizeof (savegame_t));
+    FIXME("SIZE OF savegame\r\n");
     int i;
     char comment[SAVEGAME_COMMENT_LENGTH + 1];
     if (cmd_source != src_command)
@@ -650,15 +560,17 @@ void Host_Savegame_f(void)
 #endif
     // save audio channels, including sounds coming from edicts.
     extMemProgram((uint32_t) &nvm->savegames[savegameNumber].s.channels, (uint8_t*) &channels, sizeof(nvm->savegames[savegameNumber].s.channels));
-    // save global data
+    // save global progs data
     extMemProgram((uint32_t) &nvm->savegames[savegameNumber].s.progsvars, (uint8_t*) &progs, sizeof(nvm->savegames[savegameNumber].s.progsvars));
+    // save vid pointer
+    extMemProgram((uint32_t) &nvm->savegames[savegameNumber].s.pcolormap, (uint8_t*) &vid.colormap, sizeof(nvm->savegames[savegameNumber].s.pcolormap));
+
     uint32_t cookie = SAVEGAME_COOKIE;
     extMemProgram((uint32_t) &nvm->savegames[savegameNumber].s.cookie, (uint8_t*) &cookie, sizeof(nvm->savegames[savegameNumber].s.cookie));
     uint32_t version = SAVEGAME_VERSION;
     extMemProgram((uint32_t) &nvm->savegames[savegameNumber].s.version, (uint8_t*) &version, sizeof(nvm->savegames[savegameNumber].s.version));
     Con_Printf("done.\n");
 
-#endif
 }
 
 /*
@@ -668,144 +580,6 @@ void Host_Savegame_f(void)
  */
 void Host_Loadgame_f(void)
 {
-#if USE_PROGSDAT
-	char	name[MAX_OSPATH];
-	FILE	*f;
-	char	mapname[MAX_QPATH];
-	float	time, tfloat;
-	char	str[32768], *start;
-	int		i, r;
-	edict_t	*ent;
-	int		entnum;
-	int		version;
-	float			spawn_parms[NUM_SPAWN_PARMS];
-
-	if (cmd_source != src_command)
-		return;
-
-	if (Cmd_Argc() != 2)
-	{
-		Con_Printf ("load <savename> : load a game\n");
-		return;
-	}
-
-	_g->cls.demonum = -1;		// stop demo loop in case this fails
-
-	sprintf (name, "%s/%s", com_gamedir, Cmd_Argv(1));
-	COM_DefaultExtension (name, ".sav");
-
-// we can't call SCR_BeginLoadingPlaque, because too much stack space has
-// been used.  The menu calls it before stuffing loadgame command
-//	SCR_BeginLoadingPlaque ();
-
-	Con_Printf ("Loading game from %s...\n", name);
-	f = fopen (name, "r");
-	if (!f)
-	{
-		Con_Printf ("ERROR: couldn't open.\n");
-		return;
-	}
-
-	fscanf (f, "%i\n", &version);
-	if (version != SAVEGAME_VERSION)
-	{
-		fclose (f);
-		Con_Printf ("Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
-		return;
-	}
-	fscanf (f, "%s\n", str);
-	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-		fscanf (f, "%f\n", &spawn_parms[i]);
-// this silliness is so we can load 1.06 save files, which have float skill values
-	fscanf (f, "%f\n", &tfloat);
-	current_skill = (int)(tfloat + 0.1);
-	Cvar_SetValue ("skill", (float)current_skill);
-
-
-	fscanf (f, "%s\n",mapname);
-	fscanf (f, "%f\n",&time);
-
-	CL_Disconnect_f ();
-
-	SV_SpawnServer (mapname, false);
-
-	if (!sv.active)
-	{
-		Con_Printf ("Couldn't load map\n");
-		return;
-	}
-	sv.paused = true;		// pause until all clients connect
-	sv.loadgame = true;
-
-// load the light styles
-
-	for (i=0 ; i<MAX_LIGHTSTYLES ; i++)
-	{
-		fscanf (f, "%s\n", str);
-		sv.lightstyles[i] = Hunk_Alloc (strlen(str)+1);
-		strcpy (sv.lightstyles[i], str);
-	}
-
-// load the edicts out of the savegame file
-	entnum = -1;		// -1 is the globals
-	while (!feof(f))
-	{
-		for (i=0 ; i<sizeof(str)-1 ; i++)
-		{
-			r = fgetc (f);
-			if (r == EOF || !r)
-				break;
-			str[i] = r;
-			if (r == '}')
-			{
-				i++;
-				break;
-			}
-		}
-		if (i == sizeof(str)-1)
-			Sys_Error ("Loadgame buffer overflow");
-		str[i] = 0;
-		start = str;
-		start = COM_Parse(str);
-		if (!com_token[0])
-			break;		// end of file
-		if (strcmp(com_token,"{"))
-			Sys_Error ("First token isn't a brace");
-
-		if (entnum == -1)
-		{	// parse the global vars
-			ED_ParseGlobals (start);
-		}
-		else
-		{	// parse an edict
-
-			ent = EDICT_NUM(entnum);
-			memset (&ent->v, 0, progs->entityfields * 4);
-			ent->free = false;
-			ED_ParseEdict (start, ent);
-
-		// link it into the bsp tree
-			if (!ent->free)
-				SV_LinkEdict (ent, false);
-		}
-
-		entnum++;
-	}
-
-	sv.num_edicts = entnum;
-	sv.time = time;
-
-	fclose (f);
-
-	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-		svs.clients->spawn_parms[i] = spawn_parms[i];
-
-	if (_g->cls.state != ca_dedicated)
-	{
-		CL_EstablishConnection ("local");
-		Host_Reconnect_f ();
-	}
-	#else
     char mapname[MAX_QPATH];
     float time;
     float spawn_parms[NUM_SPAWN_PARMS];
@@ -881,7 +655,10 @@ void Host_Loadgame_f(void)
         memcpy(&sv, oldSv, sizeof(sv));
     }
     SV_SpawnServer(mapname, false);
+    // load vid pointer
+    extMemGetDataFromAddress((uint8_t*) &vid.colormap, (void*) &nvm->savegames[savegameNumber].s.pcolormap,  sizeof(nvm->savegames[savegameNumber].s.pcolormap));
 
+    //
     if (!sv.active)
     {
         Con_Printf("Couldn't load map\n");
@@ -914,18 +691,15 @@ void Host_Loadgame_f(void)
     extMemGetDataFromAddress(&areanode, &nvm->savegames[savegameNumber].s.areanode, sizeof(nvm->savegames[savegameNumber].s.areanode));
     extMemGetDataFromAddress(&numAreaNodes, &nvm->savegames[savegameNumber].s.numareadnodes, sizeof(nvm->savegames[savegameNumber].s.numareadnodes));
     //
-    printf("Areanode is %p, num %d\r\n", areanode, numAreaNodes);
-    FIXME("");
     setAreaNode(areanode, numAreaNodes);
-    // save nodehaddlight
+    // load nodehaddlight
     extMemGetDataFromAddress(&nodeHadDlight, &nvm->savegames[savegameNumber].s.nodeHadDlight, sizeof(nvm->savegames[savegameNumber].s.nodeHadDlight));
 
     // read audio channels, including sounds coming from edicts.
-    printf("Line %d\r\n", __LINE__);
     extMemGetDataFromAddress(&channels, &nvm->savegames[savegameNumber].s.channels, sizeof(nvm->savegames[savegameNumber].s.channels));
     // read global data
-    printf("Line %d\r\n", __LINE__);
     extMemGetDataFromAddress(&progs, &nvm->savegames[savegameNumber].s.progsvars, sizeof(nvm->savegames[savegameNumber].s.progsvars));
+    //
     //
     sv.time = time;
     // copy spawn params
@@ -938,8 +712,6 @@ void Host_Loadgame_f(void)
         Host_Reconnect_f();
         _g->cls.signon = 0;
     }
-
-#endif
 }
 
 //============================================================================
@@ -951,6 +723,7 @@ void Host_Loadgame_f(void)
  */
 void Host_Name_f(void)
 {
+#if HAS_MULTIPLAYER
     char *newName;
 
     if (Cmd_Argc() == 1)
@@ -986,7 +759,7 @@ void Host_Name_f(void)
     MSG_WriteByte(&sv.reliable_datagram, svc_updatename);
     MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
     MSG_WriteString(&sv.reliable_datagram, host_client->name);
-
+#endif
 }
 
 void Host_Version_f(void)
@@ -1046,7 +819,7 @@ void Host_Please_f (void)
 	}
 }
 #endif
-
+#if HAS_MULTIPLAYER
 void Host_Say(qboolean teamonly)
 {
     client_t *client;
@@ -1109,15 +882,19 @@ void Host_Say(qboolean teamonly)
 
     Sys_Printf("%s", &text[1]);
 }
-
+#endif
 void Host_Say_f(void)
 {
+#if HAS_MULTIPLAYER
     Host_Say(false);
+#endif
 }
 
 void Host_Say_Team_f(void)
 {
+#if HAS_MULTIPLAYER
     Host_Say(true);
+#endif
 }
 
 void Host_Tell_f(void)
@@ -1521,6 +1298,7 @@ void Host_Begin_f(void)
  Kicks a user off of the server
  ==================
  */
+#if HAS_MULTIPLAYER
 void Host_Kick_f(void)
 {
     char com_token[1024];
@@ -1605,7 +1383,7 @@ void Host_Kick_f(void)
 
     host_client = save;
 }
-
+#endif
 /*
  ===============================================================================
 

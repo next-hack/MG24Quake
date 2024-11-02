@@ -29,7 +29,9 @@
 // net_loop.c
 #include "quakedef.h"
 #include "net_loop.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 qboolean localconnectpending = false;
 qsocket_t *loop_client = NULL;
 qsocket_t *loop_server = NULL;

@@ -40,7 +40,9 @@
 #include "SDL.h"
 #endif
 model_t *loadmodel;
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 void Mod_LoadSpriteModel(model_t *mod, void *buffer);
 void Mod_LoadBrushModel(model_t *mod, void *buffer);
 //void Mod_LoadAliasModel (model_t *mod, void *buffer);
@@ -251,15 +253,24 @@ model_t* Mod_FindName(const char *name)
 {
     int i;
     model_t *mod;
-
+    //
     if (!name[0])
         Sys_Error("Mod_ForName: NULL name");
-//
-// search the currently loaded models
-//
+    // get index of string. Note, all strings have an index!
+    #if !MODEL_HAS_NAME_POINTER
+    int nameIdx = findStringIndex(name);
+    #endif
+    //
+    //
+    // search the currently loaded models
+    //
     for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
     {
+#if MODEL_HAS_NAME_POINTER
         if (!strcmp(mod->name, name))
+#else
+       if (nameIdx == mod->nameIdx)
+#endif
             break;
     }
 
@@ -273,12 +284,16 @@ model_t* Mod_FindName(const char *name)
         else
             mod_numknown++;
         //
+        #if MODEL_HAS_NAME_POINTER
         unsigned int len = strlen(name) + 1;
         if (len > MAX_QPATH)
         {
             Sys_Error("mod name too long");
         }
         mod->name = storeToInternalFlash(name, (len + 3) & ~3);
+        #else
+            mod->nameIdx = nameIdx;
+        #endif
         mod->needload = NL_NEEDS_LOADED;
     }
 
@@ -299,12 +314,8 @@ void Mod_TouchModel(char *name)
  */
 void Mod_LoadAliasModelMemoryReady(model_t *mod, void *buffer, uint32_t size)
 {
-#if WIN32
-    printf("Size of %s is %d\r\n", mod->name, size);
-#else
     (void) size;
-#endif
-
+    //
     disk_aliashdr_t header;
     extMemGetDataFromAddress(&header, buffer, sizeof(header));
 
@@ -464,8 +475,20 @@ model_t* Mod_LoadModel(model_t *mod, qboolean crash)
     }
     if (!canNewModelBeLoaded())
     {
+        if (crash)
+        {
+    #if MODEL_HAS_NAME_POINTER
         Sys_Error("Asked to load: %s when models were finalized", mod->name);
+    #else
+            Sys_Error("Asked to load: %s when models were finalized", getStringFromIndex(mod->nameIdx));
+    #endif
     }
+        else
+        {
+            return NULL;
+        }
+    }
+
 //
 // because the world is so huge, load it one piece at a time
 //
@@ -474,6 +497,7 @@ model_t* Mod_LoadModel(model_t *mod, qboolean crash)
 // load the file
 //
     unsigned int size;
+#if MODEL_HAS_NAME_POINTER
     buf = (unsigned int*) getExtMemPointerToFileInPak(mod->name, &size);
 
     if (!buf)
@@ -482,6 +506,18 @@ model_t* Mod_LoadModel(model_t *mod, qboolean crash)
             Sys_Error("Mod_NumForName: %s not found", mod->name);
         return NULL;
     }
+
+#else
+    char *name = getStringFromIndex(mod->nameIdx);
+    buf = (unsigned int*) getExtMemPointerToFileInPak(name, &size);
+    if (!buf)
+    {
+        if (crash)
+            Sys_Error("Mod_NumForName: %s not found", name);
+        return NULL;
+    }
+
+#endif
 
 //
 // allocate a new model
@@ -712,7 +748,9 @@ void Mod_LoadTextures(lump_t *l, int *numTextures)
         tx->height = mt->height;
 
         if (mt->width > 2047 || mt->height > 2047)
+        {
             FIXME("MT too large");
+        }
         if (!Q_strncmp(mt->name, "*", 1))		// turbulent
         {
             tx->isTurbulent = 1;
@@ -724,7 +762,11 @@ void Mod_LoadTextures(lump_t *l, int *numTextures)
         if (!Q_strncmp(mt->name, "sky", 3))
         {
             tx->isSky = 1;
+#if MODEL_HAS_NAME_POINTER
             R_InitFlashSky(mt, loadmodel->name);
+#else
+            R_InitFlashSky(mt, getStringFromIndex(loadmodel->nameIdx));
+#endif
         }
         loadmodel->brushModelData->textures[i] = tx;
     }
@@ -913,8 +955,9 @@ void Mod_LoadVertexes(lump_t *l)
     int count;
 
     in = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(*in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+
+//    if (l->filelen % sizeof(*in))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(*in);
     loadmodel->brushModelData->vertexes = storeToInternalFlash(in, (count * sizeof(*in) + 3) & ~3);
 }
@@ -930,8 +973,8 @@ void Mod_LoadSubmodels(lump_t *l, uint8_t *subModelBuffer, unsigned int submodel
     int count;
 
     in = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(*in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+//    if (l->filelen % sizeof(*in))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(*in);
     //
     loadmodel->brushModelData->numsubmodels = count;
@@ -959,8 +1002,8 @@ void Mod_LoadEdges(lump_t *l)
     int count;
 
     in = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(*in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+//    if (l->filelen % sizeof(*in))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(*in);
 //		printf("Line %d %s  ", __LINE__ , __PRETTY_FUNCTION__);
     STATIC_ASSERT(sizeof(dedge_t) == sizeof(medge_t));
@@ -991,8 +1034,8 @@ void Mod_LoadTexinfo(lump_t *l, int numTextures)
     float len1, len2;
 
     pin = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+//    if (l->filelen % sizeof(in))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(in);
     //
     byte stackBuffer[sizeof(*out) * MAX_TEMP_LOAD_TEXINFO];
@@ -1129,7 +1172,10 @@ void CalcSurfaceExtents(msurface_t *s)
         s->texturemins[i] = bmins[i] * 16;
         s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
         if (!(tex->reduced_flags & TEX_SPECIAL) && s->extents[i] > 256)
-            Sys_Error("Bad surface extents");
+        {
+            // next-hack: FIXME. I don't know why in E3M5 this occurs.
+            /*Sys_Error*/ printf("Bad surface extents");
+        }
     }
 }
 
@@ -1140,9 +1186,9 @@ void CalcSurfaceExtents(msurface_t *s)
  */
 
 #define MAX_TEMP_LOAD_FACES 128
-void Mod_LoadFaces(lump_t *l)
+void Mod_LoadFaces(lump_t *l, lump_t *nodelump)
 {
-    dface_t *pin;
+    byte *pin;
     dface_t in;
 
     msurface_t *out;
@@ -1150,8 +1196,8 @@ void Mod_LoadFaces(lump_t *l)
     int planenum, side;
 
     pin = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+//    if (l->filelen % sizeof(in))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(in);
 
     loadmodel->brushModelData->numsurfaces = count;
@@ -1165,12 +1211,20 @@ void Mod_LoadFaces(lump_t *l)
     }
     unsigned int modIndex = loadmodel - mod_known;
     if (modIndex > 255)
+    {
         FIXME("ERROR, POINTER BROKEN");
+    }
     extMemSetCurrentAddress((uint32_t) pin);
 
     byte stackBuffer[sizeof(*out) * MAX_TEMP_LOAD_FACES];
     out = (void*) stackBuffer;
     loadmodel->brushModelData->surfaces = getCurrentInternalFlashPtr();
+
+    // 11/10/2024 next-hack: storing here the surfnodeindex. But we need to load info from node lump. Yes it is horrible, but it is quicker.
+#if 1
+    byte *nodedata;
+    nodedata = (byte*) (mod_base + nodelump->fileofs);
+#endif
 
     for (surfnum = 0; surfnum < count; surfnum++, out++)
     {
@@ -1186,7 +1240,8 @@ void Mod_LoadFaces(lump_t *l)
             memset(stackBuffer, 0, sizeof(stackBuffer));
         }
 
-        extMemGetDataFromCurrentAddress(&in, sizeof(in));
+        extMemGetDataFromAddress(&in, pin, sizeof(in));
+        pin += sizeof(in);
 #if MSURFACE_USES_MODEL_IDX
             out->modelIdx = modIndex;
     #endif // SURF_HAS_MODEL_POINTER
@@ -1194,6 +1249,7 @@ void Mod_LoadFaces(lump_t *l)
         out->numedges = in.numedges;
         out->surfIdx = surfnum;
         //
+        extMemGetDataFromAddress(&out->surfNodeIndex,&nodedata[4] + surfnum * 2, sizeof(out->surfNodeIndex));
         //
         out->flags = 0;
 
@@ -1214,15 +1270,6 @@ void Mod_LoadFaces(lump_t *l)
 
         CalcSurfaceExtents(out);
 
-        /*		static int maxValue = 0;
-         if (out->planeIdx > maxValue)
-         {
-         maxValue = out->planeIdx;
-         printf("Max value increased to %d\r\n", maxValue);
-         if (maxValue > 2048)
-         FIXME("NEW MAX");
-         }*/
-
         // lighting info
         for (i = 0; i < MAXLIGHTMAPS; i++)
         {
@@ -1238,14 +1285,18 @@ void Mod_LoadFaces(lump_t *l)
         }
         i = in.lightofs;
 
-        if ((i > 0 && (i & 0x3)) || i > 65534 * 4)
-            FIXME("Wrong light data");
 #if MSURFACE_HAS_LIGHT_SAMPLE_POINTER
+        if ((i > 0 && (i & 0x3)))
+        {
+            FIXME("Wrong light data");
+        }
         if (i == -1)
             out->samples = NULL;
         else
             out->samples = loadmodel->brushModelData->lightdata + i;
 #else
+        if ((i > 0 && (i & 0x3)) || i > 65534 * 4)
+            FIXME("Wrong light data");
         out->samplesIdx = i >> 2;
 #endif // MSURFACE_HAS_LIGHT_SAMPLE_POINTER
         // set the drawing flags flag
@@ -1389,8 +1440,29 @@ void Mod_LoadNodesAndLeafs(lump_t *l)
     // store surfaceindex
     loadmodel->brushModelData->numnodes = count;
     loadmodel->brushModelData->numleafs = numleafs;
-    int size = (sizeof(short) * loadmodel->brushModelData->numsurfaces + 3) & ~3;
-    loadmodel->brushModelData->surfNodeIndex = storeToInternalFlash(&data[4], size);
+ #if 0
+    //int size = (sizeof(short) * loadmodel->brushModelData->numsurfaces + 3) & ~3;
+    //short *tmp = storeToInternalFlash(&data[4], size);
+    for (int i = 0; i < loadmodel->brushModelData->numsurfaces; i+= 2)
+    {
+        short idx[2];
+        extMemGetDataFromAddress(&data[4] + i,idx, sizeof(idx));
+
+        loadmodel->brushModelData->surfaces[i].surfNodeIndex = idx[0];
+        if (i + 1 < loadmodel->brushModelData->numsurfaces)
+        {
+            loadmodel->brushModelData->surfaces[i + 1].surfNodeIndex = idx[1];
+        }
+    }
+#endif
+    /*
+    for (int i = 0; i < loadmodel->brushModelData->numsurfaces; i++)
+    {
+        short idx[2];
+              loadmodel->brushModelData->surfaces[i].surfNodeIndex = tmp[i];
+    }*/
+
+    //loadmodel->brushModelData->surfNodeIndex = storeToInternalFlash(&data[4], size);
     // store mnodes
     // NOTE!!! THE SIZE IS ROUNDED TO 4 byte boundary but the offsets on disk should not!
 #if !NODE_HAS_PLANE_POINTER
@@ -1463,8 +1535,8 @@ void Mod_LoadClipnodes(lump_t *l, int *clipnodes)
     hull_t *hull;
 
     pin = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(*pin))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+ //   if (l->filelen % sizeof(*pin))
+ //       Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(*pin);
     //   printf("Line %d %s  ", __LINE__ , __PRETTY_FUNCTION__);
     dclipnode_t stackBuffer[MAX_TEMP_LOADCLIPNODES];
@@ -1701,8 +1773,8 @@ void Mod_LoadMarksurfaces(lump_t *l)
     int count;
     short *pin;
     pin = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(*pin))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+//    if (l->filelen % sizeof(*pin))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(*pin);
     loadmodel->brushModelData->marksurfaceIdx = storeToInternalFlash(pin, (count * sizeof(*pin) + 3) & ~3);
 }
@@ -1725,8 +1797,8 @@ void Mod_LoadSurfedges(lump_t *l)
     short *out;
 #endif
     in = (void*) (mod_base + l->fileofs);
-    if (l->filelen % sizeof(*in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+//    if (l->filelen % sizeof(*in))
+//        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(*in);
 
     byte stackBuffer[sizeof(*out) * MAX_TEMP_LOAD_SURFEDGES];
@@ -1782,8 +1854,8 @@ void Mod_LoadPlanes(lump_t *l)
 
     void *pin = (void*) (mod_base + l->fileofs);
 
-    if (l->filelen % sizeof(in))
-        Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+ //   if (l->filelen % sizeof(in))
+ //       Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     count = l->filelen / sizeof(in);
 
     //
@@ -1923,10 +1995,9 @@ void Mod_LoadBrushModel(model_t *mod, void *buffer)
     header = extMemGetDataFromAddress(&stackHeader, buffer, sizeof(stackHeader));
 #endif
     i = LittleLong(header->version);
-    if (i != BSPVERSION)
-        Sys_Error("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, i, BSPVERSION);
-//    printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>Brush Model Name: %s\r\n", mod->name);
-// swap all the lumps
+//    if (i != BSPVERSION)
+//        Sys_Error("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, i, BSPVERSION);
+
     mod_base = (byte*) buffer;
 
 #if SWAPCRAP
@@ -1944,7 +2015,7 @@ void Mod_LoadBrushModel(model_t *mod, void *buffer)
     Mod_LoadLighting(&header->lumps[LUMP_LIGHTING]);                // xx this might be loaded on demand. To be defined.
     Mod_LoadPlanes(&header->lumps[LUMP_PLANES]); // xx probably we should split between plane dist and plane bits and plane type. Probably type might be joined to signbits to save a little.
     Mod_LoadTexinfo(&header->lumps[LUMP_TEXINFO], numTextures);     // xx should be done by the editor
-    Mod_LoadFaces(&header->lumps[LUMP_FACES]);                 // xx
+    Mod_LoadFaces(&header->lumps[LUMP_FACES], &header->lumps[LUMP_NODES]);                 // xx
     Mod_LoadMarksurfaces(&header->lumps[LUMP_MARKSURFACES]);   // xx
     Mod_LoadVisibility(&header->lumps[LUMP_VISIBILITY]);       // xx
     //Mod_LoadLeafs (&header->lumps[LUMP_LEAFS]);                 // xx
@@ -2052,7 +2123,11 @@ void Mod_LoadBrushModel(model_t *mod, void *buffer)
             {
                 Sys_Error("mod name too long");
             }
+#if MODEL_HAS_NAME_POINTER
             loadmodel->name = storeToInternalFlash(name, (len + 3) & ~3);
+#else
+            loadmodel->nameIdx = findStringIndex(name);
+#endif
             mod = loadmodel;
         }
 
@@ -2177,7 +2252,7 @@ void* Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe)
 void Mod_LoadSpriteModel(model_t *mod, void *buffer)
 {
     int i;
-    int version;
+//    int version;
     dsprite_t *pin;
     msprite_t *psprite;
     int numframes;
@@ -2186,9 +2261,9 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
     dsprite_t in;
     pin = (dsprite_t*) extMemGetDataFromAddress(&in, buffer, sizeof(in));
 
-    version = LittleLong(pin->version);
-    if (version != SPRITE_VERSION)
-        Sys_Error("%s has wrong version number (%i should be %i)", mod->name, version, SPRITE_VERSION);
+ //   version = LittleLong(pin->version);
+ //   if (version != SPRITE_VERSION)
+ //       Sys_Error("%s has wrong version number (%i should be %i)", mod->name, version, SPRITE_VERSION);
 
     numframes = LittleLong(pin->numframes);
 
@@ -2276,7 +2351,11 @@ void Mod_Print(void)
     Con_Printf("Cached models:\n");
     for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
     {
+#if MODEL_HAS_NAME_POINTER
         Con_Printf("%8p : %s", mod->data, mod->name);
+#else
+        Con_Printf("%8p : %s", mod->data, getStringFromIndex(mod->nameIdx));
+#endif
         if (mod->needload & NL_UNREFERENCED)
             Con_Printf(" (!R)");
         if (mod->needload & NL_NEEDS_LOADED)
@@ -2306,4 +2385,7 @@ void resetTempModKnown(void **smb, void **mpb)
     if (mpb)
         *mpb = (byte*) *smb + sizeof(*smb) * MAX_MODELS;
 }
-
+int areModelsFinalized(void)
+{
+    return modelsFinalized;
+}

@@ -30,7 +30,7 @@
 #include "main.h"
 #include "boards.h"
 
-#define EUSART_SPI_WATERMARK (eusartRxFiFoWatermark4Frame | eusartTxFiFoWatermark16Frame) // rx was 4, tx 16
+#define EUSART_SPI_WATERMARK (eusartRxFiFoWatermark4Frame | eusartTxFiFoWatermark16Frame) // rx  4, tx 16
 #define EUSART_COM_WATERMARK (eusartRxFiFoWatermark1Frame | eusartTxFiFoWatermark16Frame)
 
 //
@@ -38,7 +38,8 @@ void*extMemGetDataAligned(void *dest, unsigned int length);
 //
 #define HAS_EXT_FLASH                           1
 #define HIGH_SPEED_EUSART_DIVISOR               1
-#define SPI_ADDRESS_MASK                        0x1FFFFFF   // only 16+16 MB max supported
+#define SPI_ADDRESS_MASK                        0x3FFFFFFF   // We support up to 1G
+#define SPI_MODE_CFG                            0
 //
 #define SPI_FLASH_SECTOR_SIZE                   4096
 #define SPI_FLASH_32K_BLOCK_SIZE                (32 * 1024)
@@ -53,6 +54,7 @@ void*extMemGetDataAligned(void *dest, unsigned int length);
 #define SPI_FLASH_MFG_ID                        0x90
 #define SPI_FLASH_READ_DATA                     0x03
 #define SPI_FLASH_FAST_READ_DATA                0x0B
+#define SPI_FLASH_ENTER_4_BYTE_ADDRESS_MODE     0xB7
 
 #define SPI_FLASH_STATUS_REGISTER_BUSY          1
 #define SPI_FLASH_PAGE_SIZE                     256
@@ -60,6 +62,7 @@ void*extMemGetDataAligned(void *dest, unsigned int length);
 #define ID_4M                                   0x15
 #define ID_8M                                   0x16
 #define ID_16M                                  0x17
+#define ASYNCH_DMA_BYTE_POS                     (0)
 typedef struct
 {
     uint32_t firstData;
@@ -69,13 +72,14 @@ typedef struct
 {
     uint8_t directMode;
     uint8_t asynchDMAUsartNumber;
-    uint16_t rxWord;
+    //uint16_t rxWord;
     uint32_t bufferStartAddress;  //address belonging to buffer. 4-byte aligned
     uint32_t currentReadIndex;      // current pointer
     uint32_t count;               // how many bytes we actually read.
     uint8_t rxBuffer[256 + 8];
     uint8_t padding[4];  //
     uint8_t mode;
+    uint8_t addressIs32bit;
 } interleavedSpiData_t;
 extern interleavedSpiData_t interleavedSpiData;
 
@@ -88,56 +92,10 @@ static inline int interleavedSpiHasDmaFinished()
   return !((LDMA->CHDONE & (3 << FIRST_SPI_LDMA_CH)) != (3 << FIRST_SPI_LDMA_CH));
 }
 
-/**
- * @brief Sends to both flash a data, and return the received values
- * @param firstData
- * @param secondData
- * @return data.
- * @note using 32 bit data because frame could be 16 bit and registers are 32 bit anyway.
- */
-static inline interleavedSpiTxRxData_t interleavedSpiRead(uint32_t firstData, uint32_t secondData)
-{
-  interleavedSpiData.directMode = 0;
-  interleavedSpiTxRxData_t ret;
-  FIRST_SPI_USART->TXDATA = firstData;
-  SECOND_SPI_USART->TXDATA = secondData;
-  PRS->ASYNC_SWPULSE = (1 << INTERLEAVED_SPI_PRS_CH);
-  while (!(FIRST_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  while (!(FIRST_SPI_USART->STATUS & EUSART_STATUS_TXC));
-  while (!(SECOND_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  while (!(SECOND_SPI_USART->STATUS & EUSART_STATUS_TXC));
-  ret.firstData = FIRST_SPI_USART->RXDATA;
-  ret.secondData = SECOND_SPI_USART->RXDATA;
-  FIRST_SPI_USART->CMD_SET = EUSART_CMD_TXDIS | EUSART_CMD_RXDIS;
-  SECOND_SPI_USART->CMD_SET = EUSART_CMD_TXDIS | EUSART_CMD_RXDIS;
-  while ((FIRST_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  while ((SECOND_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  return ret;
-}
-static inline interleavedSpiTxRxData_t interleavedSpiReadSameData(uint32_t data)
-{
-  interleavedSpiData.directMode = 0;
-  interleavedSpiTxRxData_t ret;
-  FIRST_SPI_USART->TXDATA = data;
-  SECOND_SPI_USART->TXDATA = data;
-  PRS->ASYNC_SWPULSE = (1 << INTERLEAVED_SPI_PRS_CH);
-  while (!(FIRST_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  while (!(FIRST_SPI_USART->STATUS & EUSART_STATUS_TXC));
-  while (!(SECOND_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  while (!(SECOND_SPI_USART->STATUS & EUSART_STATUS_TXC));
-  ret.firstData = FIRST_SPI_USART->RXDATA;
-  ret.secondData = SECOND_SPI_USART->RXDATA;
-  FIRST_SPI_USART->CMD_SET = EUSART_CMD_TXDIS | EUSART_CMD_RXDIS;
-  SECOND_SPI_USART->CMD_SET = EUSART_CMD_TXDIS | EUSART_CMD_RXDIS;
-  while ((FIRST_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  while ((SECOND_SPI_USART->STATUS & EUSART_STATUS_TXENS));
-  return ret;
-}
-
 static inline uint8_t interleavedSpiFlashGetAsynchReadByteDMA(void)
 {
   while (!(LDMA->CHDONE & (1 << (FIRST_SPI_LDMA_BYTE_CH + interleavedSpiData.asynchDMAUsartNumber))));
-  return interleavedSpiData.rxWord;
+  return interleavedSpiData.rxBuffer[ASYNCH_DMA_BYTE_POS];
 }
 
 void interleavedSpiFlashInit();
@@ -151,10 +109,12 @@ int interleavedSpiFlashGetDataMode(void);
 void interleavedSpiFlashRestoreDataMode(void);
 void interleavedSpiFlashChipErase(void);
 uint8_t interleavedSpiFlashReadByteDMA(uint32_t address);
+interleavedSpiTxRxData_t interleavedSpiRead(uint32_t firstData, uint32_t secondData);
+interleavedSpiTxRxData_t interleavedSpiReadSameData(uint32_t data);
 
 /**
  * @brief Read one byte from flash using DMA, asynchronously
- * @param address: flash address we need to read
+ * @param address: flash address we need to read. Note, this is the address without the external flash address base!
  */
 static inline void interleavedSpiFlashAsynchReadByteDMA(uint32_t address)
 {
@@ -163,18 +123,35 @@ static inline void interleavedSpiFlashAsynchReadByteDMA(uint32_t address)
   // determine where is the data.
   int usartNumber = (address & 2) != 0;
   uint32_t flashAddress;
-  if (usartNumber )
-  {
-    flashAddress = ((address + 2) >> 1) - (address & 1);
-    usart = SECOND_SPI_USART;//
-  }
-  else
-  {
-    usart = FIRST_SPI_USART;
-    flashAddress =  2 + (address >> 1)  - (address & 1); //(address >> 1) + (address & 1) ;
+    if (interleavedSpiData.addressIs32bit)
+    {
+        if (usartNumber )
+        {
+            usart = SECOND_SPI_USART;//
+            flashAddress = (address >> 1) - (address & 1) - 1;
 
-  }
+        }
+        else
+        {
+            usart = FIRST_SPI_USART;
+            flashAddress = (address >> 1) - (address & 1);
 
+        }
+    }
+    else
+    {
+        if (usartNumber )
+        {
+            flashAddress = ((address + 2) >> 1) - (address & 1);
+            usart = SECOND_SPI_USART;//
+        }
+        else
+        {
+            usart = FIRST_SPI_USART;
+            flashAddress =  2 + (address >> 1)  - (address & 1); //(address >> 1) + (address & 1) ;
+
+        }
+    }
   // disable usart if we were not already in this mode.
   if (!(interleavedSpiData.directMode & (1 << usartNumber)))
   {
@@ -188,23 +165,46 @@ static inline void interleavedSpiFlashAsynchReadByteDMA(uint32_t address)
     while ((usart->STATUS & (EUSART_STATUS_TXENS | EUSART_STATUS_RXENS)) != (EUSART_STATUS_TXENS | EUSART_STATUS_RXENS));
   }
   FLASH_NCS_LOW();
-  usart->TXDATA = (SPI_FLASH_FAST_READ_DATA << 8) | (flashAddress >> 16);
-  usart->TXDATA = flashAddress;
-  usart->TXDATA = flashAddress;
-  LDMA->CH[usartNumber + FIRST_SPI_LDMA_BYTE_CH].CTRL =  LDMA_CH_CTRL_DSTMODE_ABSOLUTE |
-                      LDMA_CH_CTRL_SRCMODE_ABSOLUTE |
-                      LDMA_CH_CTRL_DSTINC_NONE |
-                      LDMA_CH_CTRL_SIZE_HALFWORD |
-                      LDMA_CH_CTRL_SRCINC_NONE |
-                      LDMA_CH_CTRL_REQMODE_BLOCK |
-                      LDMA_CH_CTRL_BLOCKSIZE_UNIT1 |
-                   //   LDMA_CH_CTRL_IGNORESREQ |
-                      ((3 - 1) <<_LDMA_CH_CTRL_XFERCNT_SHIFT) |
-                      LDMA_CH_CTRL_STRUCTTYPE_TRANSFER;
+  __asm volatile ("cpsid i\r\n");
+
+    if (interleavedSpiData.addressIs32bit)
+    {
+        usart->TXDATA = (SPI_FLASH_FAST_READ_DATA << 8) | (flashAddress >> 24);
+        usart->TXDATA = flashAddress >> 8;
+        usart->TXDATA = flashAddress << 8;
+        usart->TXDATA = flashAddress << 8;  //we repeat this because it is quicker instead of writing 0.
+        LDMA->CH[usartNumber + FIRST_SPI_LDMA_BYTE_CH].CTRL =  LDMA_CH_CTRL_DSTMODE_ABSOLUTE |
+                                                                  LDMA_CH_CTRL_SRCMODE_ABSOLUTE |
+                                                                  LDMA_CH_CTRL_DSTINC_NONE |
+                                                                  LDMA_CH_CTRL_SIZE_HALFWORD |
+                                                                  LDMA_CH_CTRL_SRCINC_NONE |
+                                                                  LDMA_CH_CTRL_REQMODE_BLOCK |
+                                                                  LDMA_CH_CTRL_BLOCKSIZE_UNIT1 |
+                                                               //   LDMA_CH_CTRL_IGNORESREQ |
+                                                                  ((4 - 1) <<_LDMA_CH_CTRL_XFERCNT_SHIFT) |
+                                                                  LDMA_CH_CTRL_STRUCTTYPE_TRANSFER;
+
+    }
+    else
+    {
+        usart->TXDATA = (SPI_FLASH_FAST_READ_DATA << 8) | (flashAddress >> 16);
+        usart->TXDATA = flashAddress;
+        usart->TXDATA = flashAddress;
+        LDMA->CH[usartNumber + FIRST_SPI_LDMA_BYTE_CH].CTRL =   LDMA_CH_CTRL_DSTMODE_ABSOLUTE |
+                                                                LDMA_CH_CTRL_SRCMODE_ABSOLUTE |
+                                                                LDMA_CH_CTRL_DSTINC_NONE |
+                                                                LDMA_CH_CTRL_SIZE_HALFWORD |
+                                                                LDMA_CH_CTRL_SRCINC_NONE |
+                                                                LDMA_CH_CTRL_REQMODE_BLOCK |
+                                                                LDMA_CH_CTRL_BLOCKSIZE_UNIT1 |
+                                                                //   LDMA_CH_CTRL_IGNORESREQ |
+                                                                ((3 - 1) <<_LDMA_CH_CTRL_XFERCNT_SHIFT) |
+                                                                LDMA_CH_CTRL_STRUCTTYPE_TRANSFER;
+    }
   LDMA->CHDONE_CLR = 15 << (FIRST_SPI_LDMA_CH);
   LDMA->CHEN_SET = 1 << (FIRST_SPI_LDMA_BYTE_CH + usartNumber);
+  __asm volatile ("cpsie i\r\n");
   //
   interleavedSpiData.asynchDMAUsartNumber = usartNumber;
 }
-
 #endif /* SRC_INTERLEAVEDSPIFLASHL_H_ */

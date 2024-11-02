@@ -25,7 +25,7 @@
 #include <stdint.h>
 
 #define RAM_PTR_BASE                0x20000000UL
-#define EXT_FLASH_BASE              0x12000000
+#define EXT_FLASH_BASE              0x40000000   // next-hack: changed to 0x40000000 to support up to 1GB external flash
 #define FLASH_PTR_BASE              0x08000000
 #define AUX_RAM_ADDRESS_BASE        0xB0000000
 //
@@ -34,7 +34,7 @@
 #define PAK_ADDRESS                           ((uint8_t*)(EXT_FLASH_BASE + 4))
 extern uint8_t                                *ext_memory;
 extern uint32_t __flashSize[];                // not really an array!
-#define FLASH_CODE_SIZE                       ((uint32_t) __flashSize)
+#define FLASH_CODE_SIZE                       ( (((uint32_t) __flashSize) + FLASH_BLOCK_SIZE - 1 ) & ~(FLASH_BLOCK_SIZE - 1))
 #if (FLASH_CODE_KB * 1024) & (FLASH_BLOCK_SIZE - 1)
 #error FLASH_CODE_KB not multiple of 8kB
 #endif

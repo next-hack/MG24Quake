@@ -28,14 +28,19 @@
 #ifndef EXTMEMORYWIN32_H
 #define EXTMEMORYWIN32_H
 #if WIN32
+#include <string.h>
 #include <stdint.h>
 #define USE_EXT_MEMORY 1
 #ifdef WIN32
-#define EXT_MEMORY_SIZE (32 * 1024 * 1024)
+#define EXT_MEMORY_SIZE (64 * 1024 * 1024)
 #define extMemGetSize() EXT_MEMORY_SIZE
 #define EXT_MEMORY_PAGE_SIZE    4096
 extern uint8_t ext_memory[EXT_MEMORY_SIZE];
+void* extMemGetDataFromCurrentAddress(void *dest, unsigned int length);
 void extMemProgram(uint32_t address, uint8_t *buffer, uint32_t size);
+void* extMemGetDataFromAddress(void *dest, void *source, unsigned int length);
+uint8_t extMemGetByteFromAddress(void *address);
+void extMemSetCurrentAddress(void *address);
 static inline int isOnExternalFlash(void *address)
 {
     return ( (uint64_t) address >=  (uint64_t) ext_memory && (uint64_t) address < (uint64_t) ext_memory + EXT_MEMORY_SIZE);
@@ -47,7 +52,7 @@ static inline int extMemGetRemainingBytes(void)
 static inline void extMemErase(uint32_t address, uint32_t size)
 {
     address &= EXT_MEMORY_SIZE - 1;
-    size = (size + EXT_MEMORY_PAGE_SIZE) & ~( EXT_MEMORY_PAGE_SIZE - 1);
+    size = (size + EXT_MEMORY_PAGE_SIZE - 1) & ~( EXT_MEMORY_PAGE_SIZE - 1);
     address &=  ~( EXT_MEMORY_PAGE_SIZE - 1);
     memset (&ext_memory[address], 0xFF, size);
 }

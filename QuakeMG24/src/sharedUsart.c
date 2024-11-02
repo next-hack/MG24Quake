@@ -294,7 +294,7 @@ void sharedUsartModeSet(void * interface, sharedUsartMode_t mode)
     if (mode != eusart1Mode)
     {
       //can't change during dma
-      while ((LDMA->CHBUSY & (1 << (SECOND_SPI_LDMA_CH))));
+      while (LDMA->CHBUSY & ((1 << (SECOND_SPI_LDMA_CH)) | (1 << (SECOND_SPI_LDMA_BYTE_CH))) );
       // wait for transmission finished.
       while ((EUSART1->EN & EUSART_EN_EN) && ! (EUSART1->STATUS & EUSART_STATUS_TXIDLE));
       // Disable EUSART
@@ -305,7 +305,7 @@ void sharedUsartModeSet(void * interface, sharedUsartMode_t mode)
       {
         EUSART1->CLKDIV = 0;
         EUSART1->CFG1 = EUSART_SPI_WATERMARK;
-        EUSART1->CFG2 = _EUSART_CFG2_MASTER_MASK | (HIGH_SPEED_EUSART_DIVISOR << 24);
+        EUSART1->CFG2 = _EUSART_CFG2_MASTER_MASK | (HIGH_SPEED_EUSART_DIVISOR << 24) |  (SPI_MODE_CFG << _EUSART_CFG2_CLKPOL_SHIFT);
         EUSART1->FRAMECFG = eusartDataBits8; // will be 16 for dual SPI
         EUSART1->CFG0 = _EUSART_CFG0_SYNC_SYNC | _EUSART_CFG0_MSBF_MASK;
         // Configure frame format

@@ -30,8 +30,9 @@
 #include "quakedef.h"
 #include "d_local.h"
 #include "r_local.h"
-
+#if COPY_PARTICLES_TO_TEXTURE_BUFFER
 extern AUX_SECTION particle_t particles[MAX_PARTICLES];
+#endif
 /*
  ==============
  D_EndParticles

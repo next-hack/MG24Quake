@@ -922,7 +922,7 @@ void SZ_Print(sizebuf_t *buf, char *data)
 }
 
 //============================================================================
-
+#if 0
 /*
  ============
  COM_SkipPath
@@ -1001,7 +1001,7 @@ void COM_FileBase(char *in, char *out)
         out[s - s2] = 0;
     }
 }
-
+#endif
 /*
  ==================
  COM_DefaultExtension
@@ -1211,9 +1211,9 @@ int COM_CheckParm (char *parm)
  being registered.
  ================
  */
-#if CHECK_REGISTERED
 void COM_CheckRegistered (void)
 {
+#if 0
 	int             h;
 	unsigned short  check[128];
 	int                     i;
@@ -1238,16 +1238,23 @@ void COM_CheckRegistered (void)
 	for (i=0 ; i<128 ; i++)
 		if (pop[i] != (unsigned short)BigShort (check[i]))
 			Sys_Error ("Corrupted data file.");
-
 	Cvar_Set ("cmdline", com_cmdline);
 	Cvar_Set ("registered", "1");
-	static_registered = 1;
-	Con_Printf ("Playing registered version.\n");
-}
 #endif
-
+	if (getExtMemPointerToFileInPak("gfx/pop.lmp", NULL))
+	{
+        registered = 1;
+        static_registered = 1;
+        Con_Printf ("Playing registered version.\n");
+	}
+	else
+	{
+        Con_Printf ("Playing shareware version.\n");
+	}
+}
+#if 0
 void COM_Path_f(void);
-
+#endif
 /*
  ================
  COM_InitArgv
@@ -1363,7 +1370,7 @@ void COM_Init(char *basedir)
 #endif
 
     COM_InitFilesystem();
-    //COM_CheckRegistered ();
+    COM_CheckRegistered ();
 }
 
 /*
@@ -1386,7 +1393,7 @@ char* van(char *stringbuff, unsigned int size, char *format, ...)
 
     return stringbuff;
 }
-
+#if 0
 /// just for debugging
 int memsearch(byte *start, int count, int search)
 {
@@ -1397,7 +1404,7 @@ int memsearch(byte *start, int count, int search)
             return i;
     return -1;
 }
-
+#endif
 /*
  =============================================================================
 
@@ -1447,6 +1454,7 @@ searchpath_t *com_searchpaths;
 
  ============
  */
+#if 0
 void COM_Path_f(void)
 {
     searchpath_t *s;
@@ -1462,7 +1470,7 @@ void COM_Path_f(void)
             Con_Printf("%s\n", s->filename);
     }
 }
-
+#endif
 /*
  ============
  COM_WriteFile
@@ -1500,6 +1508,7 @@ void COM_WriteFile (char *filename, void *data, int len)
  Only used for CopyFile
  ============
  */
+#if 0
 void COM_CreatePath(char *path)
 {
     char *ofs;
@@ -1514,7 +1523,7 @@ void COM_CreatePath(char *path)
         }
     }
 }
-
+#endif
 /*
  ===========
  COM_CopyFile
@@ -1709,6 +1718,7 @@ int COM_FOpenFile (char *filename, FILE **file)
  If it is a pak file handle, don't really close it
  ============
  */
+#if 0
 void COM_CloseFile(int h)
 {
     searchpath_t *s;
@@ -1719,7 +1729,7 @@ void COM_CloseFile(int h)
 
     Sys_FileClose(h);
 }
-
+#endif
 /*
  ============
  COM_LoadFile
@@ -1791,7 +1801,7 @@ byte* getExtMemPointerToFileInPak(char *filename, unsigned int *fileSize)
 #if WIN32
         printf("Trying to read config.cfg");
         FIXME("");
-        nvmData_t *nvm = &ext_memory[extMemGetSize() - sizeof (nvmData_t)];
+        nvmData_t *nvm = (nvmData_t*) &ext_memory[extMemGetSize() - sizeof (nvmData_t)];
 #else
         printf("Trying to read config.cfg...");
         nvmData_t *nvm = (nvmData_t*) (extMemGetSize() - sizeof(nvmData_t));
@@ -1818,6 +1828,7 @@ byte* getExtMemPointerToFileInPak(char *filename, unsigned int *fileSize)
         else
         {
             FIXME("Settings cookie corrupted\r\n");
+            Cvar_SetValue("volume", 0); // keep quiet on windows!
         }
 #else
         else
@@ -2106,4 +2117,27 @@ void COM_InitFilesystem(void)
     COM_AddGameDirectory (SDL_GetBasePath() );
 #endif
 }
+/*
+ ================
+ COM_InitFilesystem
+ ================
+  Added by next-hack. This will reinit Zone memory and reset pointers to default.
+  This is to prevent memory fragmentation, which will lead to failed alloc when 
+  allocating buffers for the colormap.
+ */
 
+void COM_ResetDynamicMemory(void)
+{
+    sv.max_edicts = MAX_EDICTS;
+    sv.num_edicts = 0;
+
+    Z_FreeTags(PU_STATIC, PU_LEVEL);
+    nodeHadDlight = NULL;
+    vid.colormap = host_colormap;
+    _g->client_entity_data = NULL;
+    _g->cl_lightstyle = NULL;
+    sv.lastEdict = NULL;
+    sv.edicts = NULL;
+    setAreaNode(NULL, 0);
+
+}

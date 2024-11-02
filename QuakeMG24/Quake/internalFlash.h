@@ -27,6 +27,12 @@
  */
 #ifndef INTERNAL_FLASH_H
 #define INTERNAL_FLASH_H
+#define PAGE_SIZE 8192
+#if WIN32
+  #define APP_SIZE    (((78*8192) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#else
+    #define APP_SIZE    (((FLASH_CODE_SIZE & (0xFFFFFF))  + PAGE_SIZE - 1)  & ~(PAGE_SIZE - 1))
+#endif
 void eraseInternalFlash(int sections);
 void *getCurrentInternalFlashPtr(void);
 void *reserveInternalFlashSize(int size);
@@ -34,9 +40,11 @@ void internalFlashResetToCommonZoneEnd(void);
 void internalFlashInit(void);
 void internalFlashSetCommonZone(void);
 void * storeToInternalFlashAtPointer(void *buffer, void *flashPos, int size);
+int getInternalFlashRemaningSize(void);
 #if WIN32
 void * storeToInternalFlash2(void *buffer, int size, char *function, int line);
 #define storeToInternalFlash(b, s) storeToInternalFlash2(b, s, __FUNCTION__, __LINE__)
+#define __flashSize  APP_SIZE
 #else
 void * storeToInternalFlash(const void *buffer, int size);
 #endif

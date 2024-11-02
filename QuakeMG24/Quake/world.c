@@ -28,7 +28,9 @@
  */
 // world.c -- world query functions
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 /*
 
  entities never clip against themselves, or their owner
@@ -283,7 +285,9 @@ void SV_ClearWorld(void)
     SV_InitBoxHull();
 #if !GLOBAL_AREA_NODE
     if (!sv_areanodes)
+    {
         sv_areanodes = Z_Calloc(sizeof(areanode_t) * AREA_NODES, 1, PU_STATIC, NULL);
+    }
 #endif // GLOBAL_AREA_NODE
     memset(sv_areanodes, 0, sizeof(areanode_t) * AREA_NODES);
     sv_numareanodes = 0;

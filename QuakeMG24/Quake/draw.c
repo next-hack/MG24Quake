@@ -161,7 +161,7 @@ void Draw_Character(int x, int y, int num)
         return;			// totally off screen
 
 #ifdef PARANOID
-	if (y > vid.height - 8 || x < 0 || x > vid.width - 8)
+	if (y > VID_HEIGHT - 8 || x < 0 || x > VID_WIDTH - 8)
 		Sys_Error ("Con_DrawCharacter: (%i, %i)", x, y);
 	if (num < 0 || num > 255)
 		Sys_Error ("Con_DrawCharacter: char %i", num);
@@ -190,11 +190,11 @@ void Draw_Character(int x, int y, int num)
 //
     if (y >= DRAW_BUFFER_HEIGHT)
     {
-        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.conrowbytes + x;
+        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     }
     else
     {
-        dest = vid.conbuffer + y * vid.conrowbytes + x;
+        dest = vid.conbuffer + y * VID_ROWBYTES + x;
     }
 
 #if !WIN32
@@ -275,7 +275,7 @@ void Draw_Character(int x, int y, int num)
 
         }
         else
-            dest += vid.conrowbytes;
+            dest += VID_ROWBYTES;
     }
 }
 
@@ -353,7 +353,7 @@ void Draw_Pic(int x, int y, qpic_t *pic)
     byte *picSource = pic->data;
     pic = extMemGetDataFromAddress(&qpd, pic, sizeof(qpd));
 
-    if ((x < 0) || (x + pic->width > vid.width) || (y < 0) || (y + pic->height > vid.height))
+    if ((x < 0) || (x + pic->width > VID_WIDTH) || (y < 0) || (y + pic->height > VID_HEIGHT))
     {
         Sys_Error("Draw_Pic: bad coordinates");
     }
@@ -361,11 +361,11 @@ void Draw_Pic(int x, int y, qpic_t *pic)
 
     if (y >= DRAW_BUFFER_HEIGHT)
     {
-        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.rowbytes + x;
+        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     }
     else
     {
-        dest = vid.buffer + y * vid.rowbytes + x;
+        dest = vid.buffer + y * VID_ROWBYTES + x;
     }
 #if !WIN32
     int wasBusy = displayData.dmaBusy;
@@ -385,7 +385,7 @@ void Draw_Pic(int x, int y, qpic_t *pic)
             dest = (byte*) aux_buffer + x;
         }
         else
-            dest += vid.rowbytes;
+            dest += VID_ROWBYTES;
 
     }
 }
@@ -403,21 +403,21 @@ void Draw_TransPic(int x, int y, qpic_t *pic)
     byte *picSource = pic->data;
     pic = extMemGetDataFromAddress(&qpd, pic, sizeof(qpd));
 
-    if (x < 0 || (x + pic->width) > vid.width || y < 0 || (y + pic->height) > vid.height)
+    if (x < 0 || (x + pic->width) > VID_WIDTH || y < 0 || (y + pic->height) > VID_HEIGHT)
     {
         Sys_Error("Draw_TransPic: bad coordinates");
     }
 
     source = extMemGetDataFromAddress(textureCacheBuffer, picSource, pic->width);
 
-//    dest = vid.buffer + y * vid.rowbytes + x;
+//    dest = vid.buffer + y * VID_ROWBYTES + x;
     if (y >= DRAW_BUFFER_HEIGHT)
     {
-        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.rowbytes + x;
+        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     }
     else
     {
-        dest = vid.buffer + y * vid.rowbytes + x;
+        dest = vid.buffer + y * VID_ROWBYTES + x;
     }
 #if !WIN32
     int wasBusy = displayData.dmaBusy;
@@ -445,7 +445,7 @@ void Draw_TransPic(int x, int y, qpic_t *pic)
                 dest = (byte*) aux_buffer + x;
             }
             else
-                dest += vid.rowbytes;
+                dest += VID_ROWBYTES;
         }
     }
     else
@@ -484,7 +484,7 @@ void Draw_TransPic(int x, int y, qpic_t *pic)
                 dest = (byte*) aux_buffer + x;
             }
             else
-                dest += vid.rowbytes;
+                dest += VID_ROWBYTES;
 
         }
     }
@@ -500,7 +500,7 @@ void Draw_TransPicTranslate(int x, int y, qpic_t *pic, byte *translation)
     byte *dest, *source, tbyte;
     int v, u;
 
-    if (x < 0 || (x + pic->width) > vid.width || y < 0 || (y + pic->height) > vid.height)
+    if (x < 0 || (x + pic->width) > VID_WIDTH || y < 0 || (y + pic->height) > VID_HEIGHT)
     {
         Sys_Error("Draw_TransPic: bad coordinates");
     }
@@ -509,11 +509,11 @@ void Draw_TransPicTranslate(int x, int y, qpic_t *pic, byte *translation)
 
     if (y >= DRAW_BUFFER_HEIGHT)
     {
-        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.rowbytes + x;
+        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     }
     else
     {
-        dest = vid.buffer + y * vid.rowbytes + x;
+        dest = vid.buffer + y * VID_ROWBYTES + x;
     }
 
 #if !WIN32
@@ -540,7 +540,7 @@ void Draw_TransPicTranslate(int x, int y, qpic_t *pic, byte *translation)
                 dest = (byte*) aux_buffer + x;
             }
             else
-                dest += vid.rowbytes;
+                dest += VID_ROWBYTES;
 
         }
     }
@@ -581,7 +581,7 @@ void Draw_TransPicTranslate(int x, int y, qpic_t *pic, byte *translation)
                 dest = (byte*) aux_buffer + x;
             }
             else
-                dest += vid.rowbytes;
+                dest += VID_ROWBYTES;
 
         }
     }
@@ -611,11 +611,11 @@ void Draw_CharToConback(int num, int x, int y)
 
     if (y >= DRAW_BUFFER_HEIGHT)
     {
-        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.conrowbytes + x;
+        dest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     }
     else
     {
-        dest = vid.conbuffer + y * vid.conrowbytes + x;
+        dest = vid.conbuffer + y * VID_ROWBYTES + x;
     }
 
 #if 0
@@ -656,7 +656,7 @@ void Draw_CharToConback(int num, int x, int y)
 
         }
         else
-            dest += vid.conrowbytes;
+            dest += VID_ROWBYTES;
     }
 #endif
 
@@ -700,7 +700,7 @@ void Draw_ConsoleBackground(int lines)
             dest = (byte*) aux_buffer;
         }
         else
-            dest += vid.conrowbytes;
+            dest += VID_ROWBYTES;
     }
     sprintf(ver, "(MG24Quake) %s", XSTR(VERSION));
     int startx = 320 - 11 - 8 * strlen(ver);
@@ -727,17 +727,17 @@ void R_DrawRect8(vrect_t *prect, int rowbytes, byte *psrc, int transparent)
 
     if (y >= DRAW_BUFFER_HEIGHT)
     {
-        pdest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.rowbytes + x;
+        pdest = (byte*) aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     }
     else
     {
-        pdest = vid.buffer + y * vid.rowbytes + x;
+        pdest = vid.buffer + y * VID_ROWBYTES + x;
     }
 
     byte *psrcadd = psrc;
     psrc = extMemGetDataFromAddress(textureCacheBuffer, psrcadd, prect->width);
 
-    destdelta = vid.rowbytes - prect->width;
+    destdelta = VID_ROWBYTES - prect->width;
 #if !WIN32
     int wasBusy = displayData.dmaBusy;
 #endif
@@ -792,7 +792,7 @@ void R_DrawRect8(vrect_t *prect, int rowbytes, byte *psrc, int transparent)
                 pdest = (byte*) aux_buffer + x;
             }
             else
-                pdest += vid.rowbytes;
+                pdest += VID_ROWBYTES;
         }
     }
 }
@@ -883,9 +883,9 @@ void Draw_Fill(int x, int y, int w, int h, int c)
     byte *dest;
     int u, v;
     if (y < DRAW_BUFFER_HEIGHT)
-        dest = vid.buffer + y * vid.rowbytes + x;
+        dest = vid.buffer + y * VID_ROWBYTES + x;
     else
-        dest = aux_buffer + (y - DRAW_BUFFER_HEIGHT) * vid.rowbytes + x;
+        dest = aux_buffer + (y - DRAW_BUFFER_HEIGHT) * VID_ROWBYTES + x;
     for (v = 0; v < h; v++)
     {
         waitForDisplayDMA(y);
@@ -898,7 +898,7 @@ void Draw_Fill(int x, int y, int w, int h, int c)
             dest = (byte*) aux_buffer + x;
         }
         else
-            dest += vid.conrowbytes;
+            dest += VID_ROWBYTES;
     }
 }
 //=============================================================================
@@ -918,18 +918,18 @@ void Draw_FadeScreen(void)
     S_ExtraUpdate();
     VID_LockBuffer ();
 
-    for (y = 0; y < vid.height; y++)
+    for (y = 0; y < VID_HEIGHT; y++)
     {
         waitForDisplayDMA(y);
         if (y < DRAW_BUFFER_HEIGHT)
-            pbuf = (byte*) (vid.buffer + vid.rowbytes * y);
+            pbuf = (byte*) (vid.buffer + VID_ROWBYTES * y);
         else
-            pbuf = (byte*) ((byte*) aux_buffer + vid.rowbytes * (y - DRAW_BUFFER_HEIGHT));
+            pbuf = (byte*) ((byte*) aux_buffer + VID_ROWBYTES * (y - DRAW_BUFFER_HEIGHT));
 
         uint32_t *p = (uint32_t*) pbuf;
         if (y & 1)
         {
-            for (x = 0; x < vid.width; x += 16)
+            for (x = 0; x < VID_WIDTH; x += 16)
             {
                 *p = *p & 0x00FF0000;
                 p++;
@@ -944,7 +944,7 @@ void Draw_FadeScreen(void)
         }
         else
         {
-            for (x = 0; x < vid.width; x += 16)
+            for (x = 0; x < VID_WIDTH; x += 16)
             {
                 *p = *p & 0x000000FF;
                 p++;
@@ -977,7 +977,7 @@ void Draw_FadeScreen(void)
 void Draw_BeginDisc(void)
 {
 
-    D_BeginDirectRect(vid.width - 24, 0, draw_disc->data, 24, 24);
+    D_BeginDirectRect(VID_WIDTH - 24, 0, draw_disc->data, 24, 24);
 }
 
 /*
@@ -991,6 +991,6 @@ void Draw_BeginDisc(void)
 void Draw_EndDisc(void)
 {
 
-    D_EndDirectRect(vid.width - 24, 0, 24, 24);
+    D_EndDirectRect(VID_WIDTH - 24, 0, 24, 24);
 }
 

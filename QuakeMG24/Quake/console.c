@@ -163,7 +163,7 @@ void Con_CheckResize(void)
 #if CON_RESIZE
 	char	tbuf[CON_TEXTSIZE];
 #endif
-    width = (vid.width >> 3) - 2;
+    width = (VID_WIDTH >> 3) - 2;
 
     if (width == con_linewidth)
         return;
@@ -431,7 +431,7 @@ void Con_Printf(char *fmt, ...)
  */
 void Con_DPrintf(char *fmt, ...)
 {
-
+#if WIN32
     va_list argptr;
     char msg[MAXPRINTMSG];
 
@@ -443,6 +443,9 @@ void Con_DPrintf(char *fmt, ...)
     va_end(argptr);
 
     Con_Printf("%s", msg);
+#else
+    (void) fmt;
+#endif
 }
 
 /*

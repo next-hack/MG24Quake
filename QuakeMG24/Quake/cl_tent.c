@@ -28,7 +28,9 @@
  */
 // cl_tent.c -- client side temporary entities
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #ifdef QUAKE2
 sfx_t			*cl_sfx_imp;
 sfx_t			*cl_sfx_rail;

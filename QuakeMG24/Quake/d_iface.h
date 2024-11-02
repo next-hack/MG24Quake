@@ -130,7 +130,7 @@ typedef struct
 {
 #if MODELS_HAVE_ORIGINAL_SKIN_TOO
 	void				*pskin;
-	void				*pOriginalskin;
+	byte *				*pOriginalskin;
 
 	#endif
     maliasskindesc_t *pskindesc;

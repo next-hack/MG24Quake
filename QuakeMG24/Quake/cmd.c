@@ -28,7 +28,9 @@
  */
 // cmd.c -- Quake script command processing module
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 // EXTERN FUNCTIONS REQUIRED FOR STATIC COMMANDS DECLARATION
 extern void IN_UpDown(void);
 extern void IN_UpUp(void);
@@ -165,7 +167,9 @@ extern void Con_MessageMode_f(void);
 extern void Con_MessageMode2_f(void);
 extern void Con_Clear_f(void);
 // common
+#if 0
 extern void COM_Path_f(void);
+#endif
 //
 extern void CL_PrintEntities_f(void);
 extern void CL_Disconnect_f(void);
@@ -207,7 +211,7 @@ qboolean cmd_wait;
 void Cmd_Wait_f(void)
 {
 //	cmd_wait = true;
-    FIXME("WAIT CMD DISABLED");
+    printf("WAIT CMD DISABLED\r\n");
 }
 
 /*
@@ -544,8 +548,11 @@ void Cmd_Echo_f(void)
 }
 void Cmd_Complete_f(void)
 {
+#if WIN32
+    // this to be fixed
     printf("forcing level complete\r\n");
     qcc_execute_changelevel();
+#endif
 }
 // next-hack added to test mipmap effet
 void Cmd_MipMap_f(void)
@@ -749,8 +756,8 @@ static const cmd_function_t cmd_functions[] =
     Cmd_AddCommand("soundinfo", S_SoundInfo_f),
     // screen
     Cmd_AddCommand ("screenshot",SCR_ScreenShot_f),
-    Cmd_AddCommand ("sizeup",SCR_SizeUp_f),
-    Cmd_AddCommand ("sizedown",SCR_SizeDown_f),
+//    Cmd_AddCommand ("sizeup",SCR_SizeUp_f),
+//    Cmd_AddCommand ("sizedown",SCR_SizeDown_f),
     // sbar
     Cmd_AddCommand ("+showscores", Sbar_ShowScores),
     Cmd_AddCommand ("-showscores", Sbar_DontShowScores),
@@ -813,7 +820,9 @@ static const cmd_function_t cmd_functions[] =
     Cmd_AddCommand ("spawn", Host_Spawn_f),
     Cmd_AddCommand ("begin", Host_Begin_f),
     Cmd_AddCommand ("prespawn", Host_PreSpawn_f),
+#if HAS_MULTIPLAYER
     Cmd_AddCommand ("kick", Host_Kick_f),
+#endif
     Cmd_AddCommand ("ping", Host_Ping_f),
     Cmd_AddCommand ("load", Host_Loadgame_f),
     Cmd_AddCommand ("save", Host_Savegame_f),
@@ -835,7 +844,7 @@ static const cmd_function_t cmd_functions[] =
     Cmd_AddCommand ("messagemode2", Con_MessageMode2_f),
     Cmd_AddCommand ("clear", Con_Clear_f),
     // common
-    Cmd_AddCommand ("path", COM_Path_f),
+    //Cmd_AddCommand ("path", COM_Path_f),
     // cl_main
     Cmd_AddCommand ("entities", CL_PrintEntities_f),
     Cmd_AddCommand ("disconnect", CL_Disconnect_f),

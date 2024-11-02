@@ -10638,7 +10638,7 @@ void() func_wall =
 /*QUAKED func_illusionary (0 .5 .8) ?
 A simple entity that looks solid but lets you walk through it.
 */
-/* next-hak removed: this is not even used.
+
 void() func_illusionary =
 
 {
@@ -10646,8 +10646,8 @@ void() func_illusionary =
 	self.movetype = MOVETYPE_NONE;
 	self.solid = SOLID_NOT;
 	setmodel (self, self.model);
-	makestatic ();
-}; */
+	makestatic (self);                    // next-hack: had to provide id.
+};
 
 /*QUAKED func_episodegate (0 .5 .8) ? E1 E2 E3 E4
 This bmodel will appear if the episode has allready been completed, so players can't reenter it.

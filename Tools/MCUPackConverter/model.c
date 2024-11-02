@@ -33,6 +33,23 @@
 #include "r_local.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+//
+#define PROFILE_NUM_ELEMENTS 1
+
+#if PROFILE_NUM_ELEMENTS
+int maxLeaves = 0;
+int maxFaces = 0;
+int maxNodes = 0;
+int maxEdges = 0;
+int maxEntitiesEasy = 0;
+int maxEntitiesMedium = 0;
+int maxEntitiesHard = 0;
+
+int maxLighting = 0;
+#endif // PROFILE_NUM_ELEMENTS
+//
+
 int modelNumsurfaces = 0;
 int modelNumnodes = 0;
 int modelNumleafs = 0;
@@ -319,10 +336,10 @@ void * Mod_LoadAliasSkinGroupChunkTri (void * pin, int *pskinindex, int skinsize
 	pinskingroup = (daliasskingroup_t *)pin;
 
 	numskins = LittleLong (pinskingroup->numskins);
+	printf("This model has %d skins\r\n", numskins);
 	paliasskingroup = chunk_AllocName (sizeof (maliasskingroup_t) +
 			(numskins - 1) * sizeof (paliasskingroup->skindescs[0]),
 			loadname);
-
 	paliasskingroup->numskins = numskins;
 
 	*pskinindex = (byte *)paliasskingroup - (byte *)pheader;
@@ -351,6 +368,10 @@ void * Mod_LoadAliasSkinGroupChunkTri (void * pin, int *pskinindex, int skinsize
         paliasskingroup->skindescs[i].skin = skin;
 #if MODELS_HAVE_ORIGINAL_SKIN_TOO
         paliasskingroup->skindescs[i].originalSkin = originalSkin;
+#if CACHEABLE_SKIN
+        // this is set to 0xFFFFFFFF so that it can be overwritten into flash, after being cached.
+         paliasskingroup->skindescs[i].pCachedSkin = 0xFFFFFFFF;
+#endif
 #endif // MODELS_HAVE_ORIGINAL_SKIN_TOO
 	}
 
@@ -901,6 +922,7 @@ void* Mod_LoadAliasModel2 (model_t *mod, void *buffer, 	disk_aliashdr_t	*poldHea
     //
 	pmodel->boundingradius = LittleFloat (pinmodel->boundingradius);
 	pmodel->numskins = LittleLong (pinmodel->numskins);
+	printf("This model has %d skins\r\n", pmodel->numskins );
 	pmodel->skinwidth = LittleLong (pinmodel->skinwidth);
 	pmodel->skinheight = LittleLong (pinmodel->skinheight);
 
@@ -927,6 +949,8 @@ void* Mod_LoadAliasModel2 (model_t *mod, void *buffer, 	disk_aliashdr_t	*poldHea
 		Sys_Error ("model %s has no triangles", mod->name);
 
 	pmodel->numframes = LittleLong (pinmodel->numframes);
+	if (pmodel->numframes >= 256)
+	    FIXME("TOO MANY FRAMES");
 	pmodel->size = LittleFloat (pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
 	mod->synctype = LittleLong (pinmodel->synctype);
 	mod->numframes = pmodel->numframes;
@@ -969,7 +993,9 @@ void* Mod_LoadAliasModel2 (model_t *mod, void *buffer, 	disk_aliashdr_t	*poldHea
 
 		skintype = LittleLong (pskintype->type);
 		pskindesc[i].type = skintype;
-
+#if CACHEABLE_SKIN
+        pskindesc[i].pCachedSkin = 0xFFFFFFFF;
+#endif
 		if (skintype == ALIAS_SKIN_SINGLE)
 		{
 		    int skin, originalSkin;
@@ -988,6 +1014,9 @@ void* Mod_LoadAliasModel2 (model_t *mod, void *buffer, 	disk_aliashdr_t	*poldHea
             }
 #if MODELS_HAVE_ORIGINAL_SKIN_TOO
             pskindesc[i].originalSkin = originalSkin;
+#if CACHEABLE_SKIN
+            pskindesc[i].pCachedSkin = 0xFFFFFFFF;      // this so that it can be overwritten in internal flash once cached.
+#endif
 #endif // MODELS_HAVE_ORIGINAL_SKIN_TOO
             pskindesc[i].skin = skin;
 		}
@@ -1051,7 +1080,8 @@ void* Mod_LoadAliasModel2 (model_t *mod, void *buffer, 	disk_aliashdr_t	*poldHea
     if (pmodel->skinheight * pmodel->skinheight > 65535)
     {
         printf("Skin too big: %d %d\r\n", pmodel->skinwidth, pmodel->skinheight);
-        system("pause");
+        while(1)
+            system("pause");
     }
     uint32_t offset = 0;
     int tringlePixData = 0;
@@ -1229,8 +1259,12 @@ void* Mod_LoadAliasModel2 (model_t *mod, void *buffer, 	disk_aliashdr_t	*poldHea
         totalVertexAnimations += (uint32_t) chunk_LowMarkInt();
     if (poldHeader)
     {
-        printf("Total bytes for vertex: %d\r\n", totalVertexAnimations);
+        static int oldTotalVertex = 0;
+        printf("Total bytes for vertex: %d. This model: %d, per frame %f\r\n", totalVertexAnimations, totalVertexAnimations - oldTotalVertex, (float)(totalVertexAnimations - oldTotalVertex) / numframes);
+        printf("Num triangles: %d\r\n", pmodel->numtris);
+        oldTotalVertex = totalVertexAnimations;
         printf("mtod data %d\r\n", offsetTableOccupation);
+//        FIXME("");
 
     }
 	mod->type = mod_alias;
@@ -1339,6 +1373,7 @@ mnode_t * Mod_GetChildNode(mnode_t *node, int childNumber, model_t * model)
 Mod_LoadNodes
 =================
 */
+
 void Mod_LoadLeafs (lump_t *l, byte *data)
 {
 	dleaf_t 	in;
@@ -1351,6 +1386,9 @@ void Mod_LoadLeafs (lump_t *l, byte *data)
     mleaf_t *buff =  out = calloc(count, sizeof(*out));
 
     modelNumleafs = count;
+#if PROFILE_NUM_ELEMENTS
+    PROFILE(Leaves, modelNumleafs);
+#endif // PROFILE_NUM_ELEMENTS
 	for ( i=0 ; i<count ; i++, out++)
 	{
 	    memcpy(&in, pin, sizeof(in));
@@ -1398,9 +1436,15 @@ void Mod_LoadNodes (lump_t *l, byte *data, int *newSize)
 
 	count = l->filelen / sizeof(*pin);
 
+
+
+
     mnode_t *buff = out = calloc(count * sizeof(*out), 1);
 
     modelNumnodes = count;
+#if PROFILE_NUM_ELEMENTS
+    PROFILE(Nodes, modelNumnodes);
+#endif // PROFILE_NUM_ELEMENTS
 
 	if (count > MAX_MAP_NODES)
     {
@@ -1546,6 +1590,9 @@ uint8_t * Convert_BrushModel(model_t *mod, uint8_t *buffer, uint32_t * size)
                 case LUMP_EDGES:
                     {
                         printf("Edges Lump %i will be copied without modifications\r\n", i);
+#if PROFILE_NUM_ELEMENTS
+    PROFILE(Edges, plump->filelen / sizeof(int));
+#endif // PROFILE_NUM_ELEMENTS
                         data = chunk_AllocName(plump->filelen , "" );
                         memcpy(data, oldLumpBuffer, plump->filelen);
                         printf("Copied at pos %p (chunkdata is at %p, offset %d)\r\n", data, chunkdata, data - chunkdata);
@@ -1565,6 +1612,9 @@ uint8_t * Convert_BrushModel(model_t *mod, uint8_t *buffer, uint32_t * size)
             break;
             case LUMP_FACES:
                 modelNumsurfaces = plump->filelen / sizeof(dface_t);
+ #if PROFILE_NUM_ELEMENTS
+    PROFILE(Faces, modelNumsurfaces);
+#endif // PROFILE_NUM_ELEMENTS
                 printf("Getting number of surfaces: %d\r\n", modelNumsurfaces);
                 data = chunk_AllocName(plump->filelen , "" );
                 memcpy(data, oldLumpBuffer, plump->filelen);
@@ -1588,14 +1638,45 @@ uint8_t * Convert_BrushModel(model_t *mod, uint8_t *buffer, uint32_t * size)
                 {
                     static int totalLighting = 0;
                     totalLighting +=  plump->filelen;
+ #if PROFILE_NUM_ELEMENTS
+    PROFILE(Lighting, plump->filelen);
+#endif // PROFILE_NUM_ELEMENTS
                     printf("LIGHTING AT LUMP %i will be copied without modifications. Size is: %d, total: %d\r\n", i, plump->filelen, totalLighting);
                     data = chunk_AllocName(plump->filelen , "" );
                     memcpy(data, oldLumpBuffer, plump->filelen);
                     printf("Copied at pos %p (chunkdata is at %p, offset %d)\r\n", data, chunkdata, data - chunkdata);
                 }
                 break;
+#if 0
+            case LUMP_VERTEXES:
+                printf("Lump %i will be copied without modifications\r\n", i);
+                data = chunk_AllocName(plump->filelen , "" );
+                memcpy(data, oldLumpBuffer, plump->filelen);
+                printf("Copied at pos %p (chunkdata is at %p, offset %d)\r\n", data, chunkdata, data - chunkdata);
+                {
+                    int badmodel = 0;
+                    float *pf = (float *)data;
+                    for (int n = 0; n < plump->filelen / 4; n++)
+                    {
+                        if ((*pf) != (int)(*pf))
+                        {
+                            printf("vertex %i is not integer %f in model %s\r\n", n, *pf, modelName);
+                            badmodel = 1;
+                            break;
+                        }
+                        pf++;
+                    }
+                    FIXME(badmodel ? "Model bad :(" : "model is good!");
+                }
+                break;
+#endif
             case LUMP_ENTITIES:
                 parseEntityList (oldLumpBuffer);
+                printf("Lump %i will be copied without modifications\r\n", i);
+                data = chunk_AllocName(plump->filelen , "" );
+                memcpy(data, oldLumpBuffer, plump->filelen);
+                printf("Copied at pos %p (chunkdata is at %p, offset %d)\r\n", data, chunkdata, data - chunkdata);
+            break;
             default:
                 printf("Lump %i will be copied without modifications\r\n", i);
                 data = chunk_AllocName(plump->filelen , "" );
@@ -1668,6 +1749,15 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
     printf("The model %s occupies %d Cache. Old was: %d Total so far: %d\r\n", mod->name, total, oldTotal, totalSoFar);
     printf("Not Cached %d. Cached: %d\r\n", totalSoFarSmall, totalSoFar - totalSoFarSmall);
     //
+}
+void printProfileData(void)
+{
+    #if PROFILE_NUM_ELEMENTS
+        printf(">>>Max number of elements: Edges = %d, Entities = (%d, %d, %d), Faces = %d, leaves = %d, Nodes = %d, lighting = %d\r\n<<<",
+               maxEdges, maxEntitiesEasy, maxEntitiesMedium, maxEntitiesHard, maxFaces, maxLeaves, maxNodes, maxLighting);
+    #else
+    // dummy
+    #endif // PROFILE_NUM_ELEMENTS
 }
 
 //=============================================================================

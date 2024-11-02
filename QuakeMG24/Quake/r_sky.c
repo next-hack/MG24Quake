@@ -176,7 +176,9 @@ void R_InitFlashSky(miptex_t *mt, char *modelName)
     if (!pskyTable || !size)
     {
         while (1)
+        {
             FIXME("CAN'T LOAD SKYTABLE");
+        }
     }
     int numberOfEntries = size / sizeof(sky_table_t);
     int skytablesize = (numberOfEntries * sizeof(sky_table_t) + 3) & ~3;
@@ -186,10 +188,14 @@ void R_InitFlashSky(miptex_t *mt, char *modelName)
     int skyNumber = -1;
     for (int i = 0; i < numberOfEntries; i++)
     {
+#if DEBUG_SKY
         printf("Checking Model name %s against %s in skytable %i\r\n", modelName, skyTable[i].modelName, i);
+#endif
         if (!strcmp(modelName, (char*) skyTable[i].modelName))
         {
+#if DEBUG_SKY
             printf("Found sky number: %i\r\n", skyTable[i].skyNum);
+#endif
             skyNumber = skyTable[i].skyNum;
             break;
         }
@@ -199,11 +205,13 @@ void R_InitFlashSky(miptex_t *mt, char *modelName)
         char filename[10];
         snprintf(filename, sizeof(filename), "sky%02x", skyNumber);
         r_skyFlashSource = COM_LoadFileFromExtMem(filename, &size);
+#if DEBUG_SKY
         if (size != 128 * 128 * 128 + 1) // +1 is because we add a null terminator
         {
             printf("Error, sky anim size is %d\r\n", size);
             FIXME("");
         }
+#endif
         r_skysource = r_skyFlashSource;
     }
 #else

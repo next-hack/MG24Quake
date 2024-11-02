@@ -49,7 +49,7 @@ extern const char *const quakeProgStrings[];
 extern const void *const quakeProgFunctions[];
 
 char* getStringFromIndex(int16_t index);
-int16_t ed_findString(const char *value);
+int16_t findStringIndex(const char *value);
 static inline int areStringsEqual(uint16_t s1, uint16_t s2)
 {
     if (s1 == s2)

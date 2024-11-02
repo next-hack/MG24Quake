@@ -182,7 +182,7 @@ uint8_t extMemGetDMAByte(void)
 {
     return dmaByte;
 }
-void interleavedSpiFlashAsynchReadByteDMA(uint32_t address)
+void extMemAsynchReadByteFromAddress(uint32_t address)
 {
     dmaByte = extMemGetByteFromAddress(address);
 }

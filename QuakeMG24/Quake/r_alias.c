@@ -91,7 +91,14 @@ qboolean R_AliasCheckBBox(void)
 // TODO: don't repeat this check when drawing?
     if ((frame >= _g->pmdl->numframes) || (frame < 0))
     {
+#if WIN32
+    #if MODEL_HAS_NAME_POINTER
         Con_DPrintf("No such frame %d %s\n", frame, _g->pmodel->name);
+    #else
+        Con_DPrintf("No such frame %d %s\n", frame, getStringFromIndex(_g->pmodel->nameIdx));
+
+    #endif
+#endif
         frame = 0;
     }
 
@@ -443,17 +450,11 @@ void R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts)
     {
         // transform and project
         zi = 1.0f / (DotProduct(pverts->v, _g->aliastransform[2]) + _g->aliastransform[2][3]);
-
-        // x, y, and z are scaled down by 1/2**31 in the transform, so 1/z is
-        // scaled up by 1/2**31, and the scaling cancels out for x and y in the
-        // projection
-        fv->v[5] = zi;
-        fv->v[0] = ((DotProduct(pverts->v, _g->aliastransform[0]) + _g->aliastransform[0][3]) * zi) + aliasxcenter;
-        fv->v[1] = ((DotProduct(pverts->v, _g->aliastransform[1]) + _g->aliastransform[1][3]) * zi) + aliasycenter;
+        // next-hack: reordered to take advantage of out of order float divide.
 #if NO_MINIMIZE
 
-		fv->v[2] = pstverts->s;
-		fv->v[3] = pstverts->t;
+        fv->v[2] = pstverts->s;
+        fv->v[3] = pstverts->t;
 #else
         fv->v[2] = pstverts->s16 << 16;
         fv->v[3] = pstverts->t16 << 16;
@@ -477,6 +478,12 @@ void R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts)
         }
 
         fv->v[4] = temp;
+        // x, y, and z are scaled down by 1/2**31 in the transform, so 1/z is
+        // scaled up by 1/2**31, and the scaling cancels out for x and y in the
+        // projection
+        fv->v[5] = zi;
+        fv->v[0] = ((DotProduct(pverts->v, _g->aliastransform[0]) + _g->aliastransform[0][3]) * zi) + aliasxcenter;
+        fv->v[1] = ((DotProduct(pverts->v, _g->aliastransform[1]) + _g->aliastransform[1][3]) * zi) + aliasycenter;
     }
 }
 
@@ -561,7 +568,10 @@ void R_AliasSetupSkin(void)
     skinnum = getEntitySkinnum(_g->currententity);
     if ((skinnum >= _g->pmdl->numskins) || (skinnum < 0))
     {
-        Con_DPrintf("R_AliasSetupSkin: no such skin # %d\n", skinnum);
+    	#if WIN32
+        printf("R_AliasSetupSkin: no such skin # %d\n", skinnum);
+        FIXME("ERROR");
+        #endif
         skinnum = 0;
     }
 
@@ -601,7 +611,37 @@ void R_AliasSetupSkin(void)
     //
     _g->r_affinetridesc.pskin = (void*) ((byte*) _g->paliashdr->extMemAddress + _g->pskindesc->skin);
 #if MODELS_HAVE_ORIGINAL_SKIN_TOO
+#if CACHE_SKINS_TO_FLASH && CACHEABLE_SKIN
+    if ( (uint32_t)_g->pskindesc->pCachedSkin != 0xFFFFFFFF)
+    {
+        _g->originalSkinInInternalFlash = 1;
+        _g->r_affinetridesc.pOriginalskin = (void*)  _g->pskindesc->pCachedSkin;
+        #if WIN32 & 0
+            #if MODEL_HAS_NAME_POINTER
+            printf("Model %s is cached at address %p, skin is %d\r\n", getEntityModel(_g->currententity)->name, _g->r_affinetridesc.pOriginalskin, skinnum);
+            #else
+                printf("Model %s is cached at address %p, skin is %d\r\n", getStringFromIndex(getEntityModel(_g->currententity)->nameIdx), _g->r_affinetridesc.pOriginalskin, skinnum);
+
+            #endif
+        #endif
+    }
+    else
+    {
+        _g->originalSkinInInternalFlash = 0;
     _g->r_affinetridesc.pOriginalskin = (void*) ((byte*) _g->paliashdr->extMemAddress + _g->pskindesc->originalSkin);
+        #if WIN32 & 0
+            #if MODEL_HAS_NAME_POINTER
+                printf("Model %s is NOT cached, skin is %d\r\n", getEntityModel(_g->currententity)->name, skinnum);
+            #else
+                printf("Model %s is NOT cached, skin is %d\r\n", getStringFromIndex(getEntityModel(_g->currententity)->nameIdx), skinnum);
+
+            #endif
+        #endif
+
+    }
+#else
+    _g->r_affinetridesc.pOriginalskin = (void*) ((byte*) _g->paliashdr->extMemAddress + _g->pskindesc->originalSkin);
+#endif
 #endif
     _g->r_affinetridesc.skinwidth = _g->a_skinwidth;
     _g->r_affinetridesc.seamfixupX16 = (_g->a_skinwidth >> 1) << 16;
@@ -716,7 +756,6 @@ void R_AliasDrawModel(alight_t *plighting)
 {
     finalvert_t finalverts[MAXALIASVERTS + ((CACHE_SIZE - 1) / sizeof(finalvert_t)) + 1];
     auxvert_t auxverts[MAXALIASVERTS];
-
     _g->paliashdr = (aliashdr_t*) Mod_Extradata(getEntityModel(_g->currententity));
 #if !NO_MINIMIZE
     _g->r_affinetridesc.paliashdr = _g->paliashdr;
@@ -733,7 +772,6 @@ void R_AliasDrawModel(alight_t *plighting)
         if (((uint32_t)_g->paliashdr->extMemAddress + _g->paliashdr->triangles) & 3)
             FIXME(">>>>>>>>>Not aligned");
     #endif // WIN32
-
     _g->r_affinetridesc.tempAnimVertsBuffer = (byte*) _g->r_affinetridesc.tempTriangleBuffer + sizeof(mtriangle_t) * _g->pmdl->numtris;
     _g->r_affinetridesc.tempTriangleOffsetData = (byte*) _g->r_affinetridesc.tempAnimVertsBuffer + sizeof(trivertx_t) * _g->pmdl->numverts;
 

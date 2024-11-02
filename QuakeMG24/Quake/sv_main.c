@@ -28,7 +28,9 @@
  */
 // sv_main.c -- server main program
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+//#pragma GCC optimize("Os") //
+#endif
 AUX_SECTION server_t		sv;
 AUX_SECTION server_static_t	svs;
 #if RUNTIME_LOCAL_MODEL_STRINGS
@@ -542,7 +544,8 @@ byte* SV_FatPVS(vec3_t org)
  =============
  */
 #if DIRECT_SINGLE_PLAYER
-uint8_t pve[(MAX_EDICTS + 7) / 8];  //potential visible entities
+//uint8_t pve[(MAX_EDICTS + 7) / 8];  //potential visible entities
+uint8_t *pve = &textureCacheBuffer[ sizeof(textureCacheBuffer) - 4* ((MAX_EDICTS + 31) / 32)];
 #endif // DIRECT_SINGLE_PLAYER
 #if DO_FIND_TOUCHED_LEAVES_JIT == 2
 extern short		global_leafnums[MAX_ENT_LEAFS];
@@ -555,7 +558,7 @@ void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
     byte *pvs;
     vec3_t org;
     edict_t *ent;
-    memset(pve, 0, sizeof(pve));
+    fastMemclear32(pve, 4* ((MAX_EDICTS + 31) / 32));
     pve[0] = 1;
 // find the client's PVS
     VectorAdd(VEC(get_qcc_origin(clent)), VEC(get_qcc_view_ofs(clent)), org);
@@ -1575,22 +1578,12 @@ void SV_SpawnServer(char *server, qboolean forceReload)
         // load progs to get entity field count
         //	PR_LoadProgs (); // next-hack: removed.
         //
-        sv.max_edicts = MAX_EDICTS;
-
         //
-#if EDICT_LINKED_LIST
-        sv.num_edicts = 0;
-        Z_FreeTags(PU_LEVEL, PU_LEVEL);
+        COM_ResetDynamicMemory();   // next-hack: let's have a clean start to prevent memory fragmentation.
         //
-        sv.lastEdict = NULL;
         // create edict for world
         sv.edicts = ED_Alloc(worldspawn_string_index);
         progs.qcc_world = EDICT_TO_PROG(sv.edicts);
-#else
-    #error we do not want this!
-	sv.edicts = Hunk_AllocName (sv.max_edicts * pr_edict_size, "edicts");
-
-    #endif // EDICT_LINKED_LIST
         //
 #if USE_GP_BUFFER_FOR_SERVER_DATAGRAM
         static void *svDatagramBuffer = NULL;
@@ -1729,7 +1722,7 @@ void SV_SpawnServer(char *server, qboolean forceReload)
 #if USE_PROGSDAT
 	set_qcc_model(ent,  sv.worldmodel->name - pr_strings);
     #else
-        set_qcc_model(ent, ed_findString(sv.worldmodel->name)); //WORLDMODEL_NAME_INDEX;//sv.worldmodel->name;
+        set_qcc_model(ent, sv.worldmodel->nameIdx); 
 #endif
         set_qcc_modelindex(ent, 1);		// world model
         set_qcc_solid(ent, SOLID_BSP);
@@ -1768,7 +1761,7 @@ void SV_SpawnServer(char *server, qboolean forceReload)
         sv.state = ss_active;
 
         // run two frames to allow everything to settle
-        host_frametime = 0.1;
+        host_frametime = 0.1f;
         SV_Physics();
         SV_Physics();
 

@@ -29,7 +29,9 @@
 // d_init.c: rasterization driver initialization
 #include "quakedef.h"
 #include "d_local.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 #define NUM_MIPS	4
 
 #if USE_ORIGINAL_CVAR
@@ -46,9 +48,6 @@ float			d_scalemip[NUM_MIPS-1];
 const float	basemip[NUM_MIPS-1] = {1.0, 0.5*0.8, 0.25*0.8};
 #endif
 //extern int			d_aflatcolor;
-
-void (*d_drawspans)(espan_t *pspan);
-
 /*
  ===============
  D_Init
@@ -131,7 +130,7 @@ void D_SetupFrame(void)
 	if (r_dowarp)
 		screenwidth = WARP_WIDTH;
 	else
-		screenwidth = vid.rowbytes;
+		screenwidth = VID_ROWBYTES;
 #endif
     d_roverwrapped = false;
 #if SURF_CACHE
@@ -147,15 +146,6 @@ void D_SetupFrame(void)
 	for (i=0 ; i<(NUM_MIPS-1) ; i++)
 		d_scalemip[i] = basemip[i] * d_mipscale;
 #endif
-#if	id386
-				if (d_subdiv16)
-					d_drawspans = D_DrawSpans16;
-				else
-					d_drawspans = D_DrawSpans8;
-#else
-    d_drawspans = D_DrawSpans8;
-#endif
-
     _g->d_aflatcolor = 0;
 }
 

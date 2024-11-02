@@ -60,9 +60,9 @@ void Show(void)
     vrect_t vr;
 
     vr.x = vr.y = 0;
-    vr.width = vid.width;
-    vr.height = vid.height;
-    vr.pnext = NULL;
+    vr.width = VID_WIDTH;
+    vr.height = VID_HEIGHT;
+//    vr.pnext = NULL;
     VID_Update(&vr);
 }
 
@@ -97,7 +97,7 @@ void R_TimeRefresh_f(void)
         vr.y = _g->r_refdef.vrect.y;
         vr.width = _g->r_refdef.vrect.width;
         vr.height = _g->r_refdef.vrect.height;
-        vr.pnext = NULL;
+//        vr.pnext = NULL;
         VID_Update(&vr);
     }
     stop = Sys_FloatTime();
@@ -125,22 +125,22 @@ void R_LineGraph(int x, int y, int h)
     x += _g->r_refdef.vrect.x;
     y += _g->r_refdef.vrect.y;
 
-    dest = vid.buffer + vid.rowbytes * y + x;
+    dest = vid.buffer + VID_ROWBYTES * y + x;
 
     s = r_graphheight;
 
     if (h > s)
         h = s;
 
-    for (i = 0; i < h; i++, dest -= vid.rowbytes * 2)
+    for (i = 0; i < h; i++, dest -= VID_ROWBYTES * 2)
     {
         dest[0] = 0xff;
-        *(dest - vid.rowbytes) = 0x30;
+        *(dest - VID_ROWBYTES) = 0x30;
     }
-    for (; i < s; i++, dest -= vid.rowbytes * 2)
+    for (; i < s; i++, dest -= VID_ROWBYTES * 2)
     {
         dest[0] = 0x30;
-        *(dest - vid.rowbytes) = 0x30;
+        *(dest - VID_ROWBYTES) = 0x30;
     }
 }
 
@@ -449,25 +449,29 @@ _g->r_refdef.viewangles[2]=    0;
     if ((r_dowarp != r_dowarpold))
     {
         Sbar_Changed(); // next-hack: required, as if we go from warp to nowarp we need to change palette.
+#if LCD_X
         if (r_viewchanged || lcd_x)
+#else
+            if (r_viewchanged)
+#endif
         {
             if (r_dowarp)
             {
 #if 0
-			if ((vid.width <= vid.maxwarpwidth) &&
-				(vid.height <= vid.maxwarpheight))
+			if ((VID_WIDTH <= vid.maxwarpwidth) &&
+				(VID_HEIGHT <= vid.maxwarpheight))
 			{
 				vrect.x = 0;
 				vrect.y = 0;
-				vrect.width = vid.width;
-				vrect.height = vid.height;
+				vrect.width = VID_WIDTH;
+				vrect.height = VID_HEIGHT;
 
 				R_ViewChanged (&vrect, sb_lines, vid.aspect);
 			}
 			else
 			{
-				w = vid.width;
-				h = vid.height;
+				w = VID_WIDTH;
+				h = VID_HEIGHT;
 
 				if (w > vid.maxwarpwidth)
 				{
@@ -487,15 +491,15 @@ _g->r_refdef.viewangles[2]=    0;
 				vrect.height = (int)h;
 
 				R_ViewChanged (&vrect,
-							   (int)((float)sb_lines * (h/(float)vid.height)),
+							   (int)((float)sb_lines * (h/(float)VID_HEIGHT)),
 							   vid.aspect * (h / w) *
-								 ((float)vid.width / (float)vid.height));
+								 ((float)VID_WIDTH / (float)VID_HEIGHT));
 			}
 #else
                 vrect.x = 0;
                 vrect.y = 0;
-                vrect.width = vid.width;
-                vrect.height = vid.height;
+                vrect.width = VID_WIDTH;
+                vrect.height = VID_HEIGHT;
                 R_ViewChanged(&vrect, sb_lines, vid.aspect);
 #endif
             }
@@ -503,8 +507,8 @@ _g->r_refdef.viewangles[2]=    0;
             {
                 vrect.x = 0;
                 vrect.y = 0;
-                vrect.width = vid.width;
-                vrect.height = vid.height;
+                vrect.width = VID_WIDTH;
+                vrect.height = VID_HEIGHT;
 
                 R_ViewChanged(&vrect, sb_lines, vid.aspect);
             }

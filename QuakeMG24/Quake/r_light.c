@@ -200,13 +200,8 @@ void R_MarkLights (dlight_t *light, int bit, mnode_t *node)
 		surf->dlightbits |= bit;
 	}
 #else
-#if !SEPARATE_BRUSH_MODEL_DATA
-    unsigned int index = surf - cl.worldmodel->surfaces;
-#else
-    unsigned int index = surf->surfIdx;
-#endif
-    unsigned int nodeindex = _g->cl.worldmodel->brushModelData->surfNodeIndex[index];
-
+    unsigned int nodeindex = surf->surfNodeIndex;
+ //printf("ni %d\r\n", nodeindex);
 #if USE_NODE_DLIGHTBITS
     nodeDlightBits[nodeindex] |= bit;
 #else

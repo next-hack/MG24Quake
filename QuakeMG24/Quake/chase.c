@@ -36,7 +36,9 @@ cvar_t	chase_up = {"chase_up", "16"};
 cvar_t	chase_right = {"chase_right", "0"};
 cvar_t	chase_active = {"chase_active", "0"};
 #endif
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+#pragma GCC optimize("Os") //
+#endif
 void Chase_Init(void)
 {
 #if USE_ORIGINAL_CVAR

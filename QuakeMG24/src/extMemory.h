@@ -64,12 +64,7 @@ static inline short extMemFlashGetShortFromAddress(const void *addr)
 }
 static inline uint8_t extMemGetByteFromAddress(const void *addr)
 {
-/*  // NOTE:  deprecated unoptimized function, do not use, code should be modified.
-  addr = (void *) ((uint32_t) addr & SPI_ADDRESS_MASK);
-  interleavedSpiFlashStartRead((uint32_t) addr, interleavedSpiData.rxBuffer, 1);
-  interleavedSpiWaitDma();
-  uint8_t *b  = &interleavedSpiData.rxBuffer[((uint32_t) addr & 3) + EXT_MEMORY_HEADER_SIZE];
-  currentSpiAddress = 1 + (void*) addr;*/
+  addr = (const void*) ((uint32_t) addr & SPI_ADDRESS_MASK);
   currentSpiAddress = (uint8_t*) addr + 1;
   return interleavedSpiFlashReadByteDMA((uint32_t) addr);
 }
@@ -146,6 +141,11 @@ static inline void * extMemStartAsynchDataRead(uint32_t address, void * dest, ui
 #endif
   uint32_t alignment = address & 0x3;
   return dest + EXT_MEMORY_HEADER_SIZE + alignment;
+}
+static inline void extMemAsynchReadByteFromAddress(uint32_t address)
+{
+    address = ((uint32_t) address & SPI_ADDRESS_MASK);
+    interleavedSpiFlashAsynchReadByteDMA(address);
 }
 static inline void extMemWaitAsynchDataRead(void)
 {

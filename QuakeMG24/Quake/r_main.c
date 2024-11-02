@@ -331,7 +331,7 @@ void R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
 
     pvrect->x = (pvrectin->width - pvrect->width) / 2;
     pvrect->y = (h - pvrect->height) / 2;
-
+#if LCD_X
     {
         if (lcd_x)
         {
@@ -339,6 +339,7 @@ void R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
             pvrect->height >>= 1;
         }
     }
+#endif
 }
 
 /*
@@ -1108,8 +1109,7 @@ void R_EdgeDrawing(void)
 	}
 #endif
     // clear surface buffer used temporarily to store cachededgesoffets
-    fastMemclear32(getTextureCacheBuffer(), MAX_TEXTURE_SIZE / 4);
-
+    clearCachedEdgeOffsets();
     R_RenderWorld();
 
 #if r_drawculledpolys
@@ -1133,13 +1133,13 @@ void R_EdgeDrawing(void)
 		db_time2 = Sys_FloatTime ();
 		se_time1 = db_time2;
 	}
-#endif
     if (!r_dspeeds)
     {
         VID_UnlockBuffer ();
         S_ExtraUpdate();	// don't let sound get messed up if going slow
         VID_LockBuffer ();
     }
+#endif
 
     if (!(r_drawpolys | r_drawculledpolys)) // both false, so this is done
         R_ScanEdges();
@@ -1205,20 +1205,24 @@ SetVisibilityByPassages ();
     if (!getEntityModel(&cl_entities[0]) || !_g->cl.worldmodel)
         Sys_Error("R_RenderView: NULL worldmodel");
 
+#if WIN32
     if (!r_dspeeds)
     {
         VID_UnlockBuffer ();
         S_ExtraUpdate();	// don't let sound get messed up if going slow
         VID_LockBuffer ();
     }
+#endif
     R_EdgeDrawing();
 
+#if WIN32
     if (!r_dspeeds)
     {
         VID_UnlockBuffer ();
         S_ExtraUpdate();	// don't let sound get messed up if going slow
         VID_LockBuffer ();
     }
+#endif
 #if PROFILE_SPEED
 
 	if (r_dspeeds)

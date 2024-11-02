@@ -57,11 +57,11 @@ typedef struct client_s
 #if !USE_GP_BUFFER_FOR_CLIENT_HOST_DATA
 	byte			msgbuf[MAX_MSGLEN];
 #endif
-    char name[32];			// for printing to other people
+    char name[16];			// for printing to other people
     int colors;
 
-    float ping_times[NUM_PING_TIMES];
-    int num_pings;			// ping_times[num_pings%NUM_PING_TIMES]
+   // float ping_times[NUM_PING_TIMES];
+  //  int num_pings;			// ping_times[num_pings%NUM_PING_TIMES]
 
 // client known data for deltas
     int old_frags;

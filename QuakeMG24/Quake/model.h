@@ -32,6 +32,7 @@
 #include "spritegn.h"
 #define MARK_NODE_IN_SURFACE 1
 #define MTRIANGLE_HAS_OFFSET_DATA 0
+#define CACHEABLE_SKIN            1
 /*
 
  d*_t structures are on-disk representations
@@ -177,11 +178,13 @@ typedef struct msurface_s
 #if MSURFACE_USES_MODEL_IDX
     uint32_t            modelIdx : 8;
 #endif
-    uint32_t flags :8;          // was int
-    int32_t numedges :8; // are backwards edges
+    uint16_t flags :8;          // was int. 5 bit is fine
+    int16_t numedges :8; // are backwards edges
+    int16_t surfNodeIndex;
 #if MSURFACE_HAS_LIGHT_SAMPLE_POINTER
     byte *samples;
 #else
+#error
     uint32_t            samplesIdx : 16;            // [numstyles*surfsize]
 #endif
 
@@ -512,6 +515,9 @@ typedef struct
     //void				*pcachespot;
 #if MODELS_HAVE_ORIGINAL_SKIN_TOO
     int originalSkin;
+    #if CACHEABLE_SKIN
+        byte *              pCachedSkin;
+    #endif
 #endif
 #endif
 
@@ -561,13 +567,6 @@ typedef struct mtriangle_s
 #if TRIANGLE_HAS_SENTINEL
 	uint32_t           sentinel;
 #endif
-    /*
-     uint16_t				facesfront : 1;
-     uint32_t                triangleOffsetDataPos : 32;
-     //int16_t		     		vertindex[3];
-     int16_t                 vertindex0;
-     int16_t                 vertindex1;
-     int16_t                 vertindex2;*/
     uint32_t facesfront :1;
     uint32_t triangleSize :13;                  //
     uint32_t vertindex0 :9;  // max 350 vertex. 512 is fine
@@ -697,45 +696,23 @@ typedef struct
     byte *visdata;
     byte *lightdata;
     char *entities;      // NOTE! THIS IS A POINTER TO EXTERNAL FLASH
-#if MARK_NODE_IN_SURFACE
-    short *surfNodeIndex;
-#endif
 } brush_model_data_t;
 #define MAX_BRUSH_MODELS 150
 extern brush_model_data_t brushModelData[MAX_BRUSH_MODELS];
-#define MODEL_HAS_NAME_POINTER  1
+#define MODEL_HAS_NAME_POINTER  0
 typedef struct model_s
 {
-#if MODEL_HAS_NAME_POINTER
-    char *name;
-#else
-	char		name[MAX_QPATH];     // next-hack: this to contain instead pointer to a pool of characters with many concatenated null terminated strings.
-#endif
-#if NO_MOD_OPTIMIZE
-	qboolean	needload;		// bmodels and sprites don't cache normally.
-
-	modtype_t	type;           // 2 bits.
-	int			numframes;      // probably less that 256 frames?
-	synctype_t	synctype;       // few bits
-
-	int			flags;          // few bits.
-#else
-#if 0
-    int32_t numframes : 8;
-    uint32_t flags : 8;
-    uint32_t needload : 2;      // note: NOT a qboolean! Damn you!
-    uint32_t type :2 ;
-    uint32_t synctype :1 ;
-    // 4 + 8 bits more available
-#else
-    int8_t numframes;
-    uint8_t flags;
-    uint8_t type;
+//    char *name;
+    int16_t nameIdx;
+    // 2 bytes padding
+    int16_t padding;
+    //
+    int8_t numframes;          //  there are models with > 128 frames
+    uint8_t flags;             // 8 bits (flags 1...128)
+    uint8_t type;              // can be 2 bits 0, 1, 2
     uint8_t needload :2;      // note: NOT a qboolean! Damn you!
     uint8_t synctype :1;
 
-#endif
-#endif
 //
 // volume occupied by the model
 //
@@ -745,78 +722,12 @@ typedef struct model_s
     short mins_s[3], maxs_s[3];
 #endif
     float radius;
-
-#if !SEPARATE_BRUSH_MODEL_DATA
-#error we want to separate data!
-    uint32_t brushModelDataIndex :8;
-
-// the following to include a pointer to another struct.
-//
-// brush model
-//
-    short firstmodelsurface;
-    short nummodelsurfaces;
-    short numplanes;       // actually not really used...
-    short numleafs;		// number of visible leafs, not counting 0
-    short numvertexes;
-    short numedges;
-    short numnodes;
-    short numtexinfo;
-    short numsurfaces;
-    short numsurfedges;
-    short numclipnodes;
-    short nummarksurfaces;
-    short numtextures;
-    short numsubmodels;
-    //
-    dmodel_t *submodels;
-
-    mplane_t *planes;
-
-    mleaf_t *leafs;
-
-    mvertex_t *vertexes;
-
-    medge_t *edges;
-
-    mnode_t *nodes;
-
-    mtexinfo_t *texinfo;
-
-    msurface_t *surfaces;
-
-#define SURF_EDGES_INT 0
-#if SURF_EDGES_INT
-	int			*surfedges;
-    #else
-    short *surfedges;
-
-#endif
-    dclipnode_t *clipnodes;
-
-#if MODEL_HAS_MARKSURFACES_POINTER
-	msurface_t	**marksurfaces;
-#else
-    short *marksurfaceIdx;
-#endif
-
-    hull_t hulls[MAX_MAP_HULLS];
-
-    texture_t **textures;
-
-    byte *visdata;
-    byte *lightdata;
-    char *entities;
-
-//
-// additional model data
-//
-#else
     //uint32_t brushModelDataIndex : 8;
+    union
+    {   // a model either is a brush (uses brushModelData) or sprite/alias (uses data)
     brush_model_data_t *brushModelData;
-#endif
-    //cache_user_t	cache;		// only access through Mod_Extradata
     void *data;
+    };
 } model_t;
 
 extern model_t *mod_known;
@@ -1004,5 +915,5 @@ texture_t* Mod_GetAlternateAnimTexture(texture_t *base);
 void finalizeModKnown(void);
 int canNewModelBeLoaded(void);
 void resetTempModKnown(void **smb, void **mpb);
-
+int areModelsFinalized(void);
 #endif	// __MODEL__

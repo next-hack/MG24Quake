@@ -28,7 +28,9 @@
  */
 // cl_main.c  -- client main loop
 #include "quakedef.h"
-
+#if RETAIL_QUAKE_PAK_SUPPORT
+//#pragma GCC optimize("Os") //
+#endif
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
 
@@ -75,7 +77,7 @@ AUX_SECTION entity_t cl_entities[MAX_EDICTS + ADDITIONAL_CLIENT_ENTITIES + MAX_T
 #endif
 
 #if DIRECT_SINGLE_PLAYER
-extern uint8_t pve[(MAX_EDICTS + 7) / 8];  //potential visible entities
+extern uint8_t *pve; //[(MAX_EDICTS + 7) / 8];  //potential visible entities
 #endif // DIRECT_SINGLE_PLAYER
 
 /*
@@ -87,24 +89,32 @@ extern uint8_t pve[(MAX_EDICTS + 7) / 8];  //potential visible entities
 void CL_ClearState(void)
 {
     if (!sv.active)
+    {
         Host_ClearMemory();
+    }
+    SZ_Clear(&_g->cls.message);
+#if SEPARATE_TEMP_ENTITIES
+	memset (cl_temp_entities, 0, sizeof(cl_temp_entities));
+#endif
+    memset(_g->cl_beams, 0, sizeof(_g->cl_beams));
+    memset(_g->cl_dlights, 0, sizeof(_g->cl_dlights));
+    //
+    if (areModelsFinalized()) // this is the case when exactly the same level is being reloaded due to savegame.
+    {
+        // next-hack: yes this is a hack, but it will simplify reload and reduce flash write operations.
+        return;
+    }
 
-// wipe the entire cl structure
+    // wipe the entire cl structure
     memset(&_g->cl, 0, sizeof(_g->cl));
 
-    SZ_Clear(&_g->cls.message);
 
 // clear other arrays
 #if !DIRECT_SINGLE_PLAYER
 	memset (cl_efrags, 0, sizeof(cl_efrags));
 #endif
     memset(cl_entities, 0, sizeof(cl_entities));
-    memset(_g->cl_dlights, 0, sizeof(_g->cl_dlights));
 //	memset (cl_lightstyle, 0, sizeof(cl_lightstyle));
-#if SEPARATE_TEMP_ENTITIES
-	memset (cl_temp_entities, 0, sizeof(cl_temp_entities));
-#endif
-    memset(_g->cl_beams, 0, sizeof(_g->cl_beams));
 
 //
 // allocate the efrags and chain together into a free list
@@ -323,7 +333,7 @@ void CL_PrintEntities_f(void)
     {
         int classname = get_qcc_classname(e);
         int type = qcc_classname2type[classname];
-        Con_Printf("Ent: %i, type %d, size %d, classname (%d) %s\n", num, type, getEdictEntvarSize(e), classname, getStringFromIndex(classname));
+        Con_Printf("Ent: %i, idx %d, type %d, size %d, classname (%d) %s\n", num, EDICT_TO_PROG(e), type, getEdictEntvarSize(e), classname, getStringFromIndex(classname));
         num++;
         e = getNextEdict(e);
     }
@@ -844,9 +854,10 @@ int CL_ReadFromServer(void)
     }
     while (ret && _g->cls.state == ca_connected);
 
+#if 0
     if (cl_shownet)
         Con_Printf("\n");
-
+#endif
 #if DONT_SEND_DATA_LOCALLY
     if (DIRECT_SINGLE_PLAYER && sv.active)
     {

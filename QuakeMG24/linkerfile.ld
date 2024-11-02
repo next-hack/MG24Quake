@@ -27,7 +27,7 @@
  *
  ******************************************************************************/
  /*Note: Compile quakeProgs.c and field_getters_setters.c with -Os (size) and not Ofast (speed) */
- FLASH_LENGTH = 0xA8000;	 
+ FLASH_LENGTH = 0x9C000;	
  MEMORY
  {
    FLASH   (rx)  : ORIGIN = 0x8000000, LENGTH = FLASH_LENGTH
@@ -129,7 +129,7 @@ SECTIONS
     __zero_table_end__ = .;
   } > FLASH
 
-   __flashSize = FLASH_LENGTH;
+   __flashSize = . - ORIGIN(FLASH);
 
   __etext = .;
 
